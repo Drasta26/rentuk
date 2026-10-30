@@ -35,6 +35,7 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - Calendar export: certificate renewal dates and open reminders as an .ics file with a 14-day alert.
 - Tenant move-in pack: printable checklist (before move-in, move-in day, within 30 days), meters, keys, inventory and signatures; opens in a new window.
 - Demo mode: open `index.html?demo` (or the link on the setup screen). Loads 3 made-up properties (great, fair and poor scores) into memory only; real saved data is never read or changed. Banner links back to the normal app.
+- Accessibility pass (30 Oct 2026): all visible text on all four tabs and the setup wizard measured at WCAG AA contrast (4.5:1, 3:1 for large text) in demo mode; every input and button has a label; popups are proper dialogs (focus moves in, Tab stays inside, Escape closes, focus returns); visible yellow keyboard focus ring; skip link; one `main` landmark (removed a duplicate `#app` ID); tab and property buttons announce which is selected; respects "reduce motion"; 44px touch targets on phones. Not tested with a real screen reader (VoiceOver/NVDA).
 - Unit tests: `npm test` (Node 20+, no packages), 22 passing on 30 Oct 2026.
 
 ## Open gaps

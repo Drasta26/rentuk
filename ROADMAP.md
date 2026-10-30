@@ -33,7 +33,8 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 - [ ] Annual income and expense summary per property, exportable as CSV.
 
 ## 7. Usability (4-6 h)
-- [ ] Mobile layout and accessibility pass (labels, keyboard use, contrast).
+- [x] Mobile layout and accessibility pass (labels, keyboard use, contrast).
+- [ ] Test with a real screen reader (VoiceOver on iPhone and Mac).
 - [x] Demo mode with made-up sample data.
 
 ## 8. Release (3-4 h)

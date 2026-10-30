@@ -45,6 +45,28 @@ document.addEventListener('DOMContentLoaded', function() {
     loadReminders();
   }
 
+  // Make a popup behave as a proper dialog for keyboard and screen-reader users.
+  function makeDialog(el, onClose) {
+    const opener = document.activeElement;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    const heading = el.querySelector('h3');
+    if (heading) { heading.id = heading.id || 'dlg-' + Date.now(); el.setAttribute('aria-labelledby', heading.id); }
+    const focusables = () => [...el.querySelectorAll('button, a[href], input, select, textarea')].filter(n => !n.disabled && n.offsetParent !== null);
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); (onClose || (() => el.remove()))(); }
+      if (e.key !== 'Tab') return;
+      const f = focusables(); if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    new MutationObserver((m, obs) => {
+      if (!el.isConnected) { obs.disconnect(); if (opener && opener.isConnected) opener.focus(); }
+    }).observe(document.body, { childList: true });
+    requestAnimationFrame(() => { const f = el.querySelector('input, .yn') || focusables()[0]; if (f) f.focus(); });
+  }
+
   // Custom Alert System
   function showCustomAlert(message, title = "RentUK says") {
     // Remove existing alert if any
@@ -70,15 +92,16 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     alertDiv.innerHTML = `
-      <h3 style="color: #6366f1; margin-bottom: 12px;">${esc(title)}</h3>
+      <h3 style="color: #4f46e5; margin-bottom: 12px;">${esc(title)}</h3>
       <p style="margin-bottom: 20px; color: #1e293b;">${esc(message)}</p>
       <button onclick="document.getElementById('custom-alert').remove()" 
-              style="background: #6366f1; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
+              style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
         OK
       </button>
     `;
 
     document.body.appendChild(alertDiv);
+    makeDialog(alertDiv);
   }
 
   // Show feedback form for thumbs down
@@ -106,13 +129,13 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     alertDiv.innerHTML = `
-      <h3 style="color: #6366f1; margin-bottom: 12px;">RentUK says</h3>
+      <h3 style="color: #4f46e5; margin-bottom: 12px;">RentUK says</h3>
       <p style="margin-bottom: 10px; color: #1e293b;">We're sorry to hear that. What could we improve?</p>
       <textarea id="feedback-text" placeholder="Please share your feedback..." 
                  style="width: 100%; height: 80px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px;"></textarea>
       <div style="display: flex; gap: 10px; justify-content: center;">
         <button onclick="submitFeedback()" 
-                style="background: #6366f1; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
+                style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
           Submit
         </button>
         <button onclick="document.getElementById('custom-alert').remove()" 
@@ -123,6 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     document.body.appendChild(alertDiv);
+    makeDialog(alertDiv);
   }
 
   function submitFeedback() {
@@ -146,25 +170,25 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load main UI
   function loadMainUI() {
     document.getElementById('app').innerHTML = `
-      <div id="app">
+      <main id="main" tabindex="-1">
         <h1>RentUK</h1>
 
         <div id="property-selector-container" style="padding: 0 24px 16px 24px; display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0; color: #f8fafc;">Properties</h3>
-            <button class="btn" id="add-property-btn" style="background: linear-gradient(135deg, #10b981, #059669); padding: 8px 16px; font-size: 0.9rem;">
+            <button class="btn" id="add-property-btn" style="background: linear-gradient(135deg, #047857, #065f46); padding: 8px 16px; font-size: 0.9rem;">
               + Add Property
             </button>
           </div>
           <div id="property-selector"></div>
         </div>
 
-        <div class="nav-tabs">
-            <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+        <nav class="nav-tabs" aria-label="Sections">
+            <button class="nav-btn active" data-tab="dashboard" aria-current="page">Dashboard</button>
             <button class="nav-btn" data-tab="expenses">Expenses</button>
             <button class="nav-btn" data-tab="reminders">Reminders</button>
             <button class="nav-btn" data-tab="tenants">Tenants</button>
-        </div>
+        </nav>
 
         <div id="dashboard" class="tab active">
             <div id="dashboard-content"></div>
@@ -249,15 +273,15 @@ document.addEventListener('DOMContentLoaded', function() {
         <div id="feedback-section" style="text-align: center; margin: 20px 0; padding: 20px;">
             <p style="margin-bottom: 10px;">Was this app helpful?</p>
             <div>
-                <button class="btn" id="thumbs-up" style="background: linear-gradient(135deg, #10b981, #059669); margin-right: 10px;">
+                <button class="btn" id="thumbs-up" style="background: linear-gradient(135deg, #047857, #065f46); margin-right: 10px;">
                     👍 Yes
                 </button>
-                <button class="btn" id="thumbs-down" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <button class="btn" id="thumbs-down" style="background: linear-gradient(135deg, #dc2626, #b91c1c);">
                     👎 No
                 </button>
             </div>
         </div>
-      </div>
+      </main>
     `;
 
     // Setup feedback buttons
@@ -300,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (properties.length === 0) {
       container.style.display = 'block';
       selector.innerHTML = `
-        <div style="text-align: center; padding: 20px; color: #94a3b8; background: #1e293b; border-radius: 8px;">
+        <div style="text-align: center; padding: 20px; color: #cbd5e1; background: #1e293b; border-radius: 8px;">
           <p>No properties added yet</p>
           <p>Click "Add Property" to get started</p>
         </div>
@@ -315,9 +339,9 @@ document.addEventListener('DOMContentLoaded', function() {
     properties.forEach(property => {
       const isActive = property.id === currentPropertyId;
       selectorHTML += `
-        <button onclick="setCurrentProperty('${esc(property.id)}')" 
-                style="padding: 10px 16px; border: 2px solid ${isActive ? '#6366f1' : '#334155'}; 
-                       background: ${isActive ? '#6366f1' : 'transparent'}; 
+        <button onclick="setCurrentProperty('${esc(property.id)}')" aria-pressed="${isActive}" 
+                style="padding: 10px 16px; border: 2px solid ${isActive ? '#4f46e5' : '#334155'}; 
+                       background: ${isActive ? '#4f46e5' : 'transparent'}; 
                        color: ${isActive ? 'white' : '#94a3b8'}; 
                        border-radius: 8px; cursor: pointer; font-weight: 600;">
           ${esc(property.name)}
@@ -377,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     alertDiv.innerHTML = `
-      <h3 style="color: #6366f1; margin-bottom: 16px;">Add New Property</h3>
+      <h3 style="color: #4f46e5; margin-bottom: 16px;">Add New Property</h3>
       <div style="margin-bottom: 16px;">
         <label style="display: block; margin-bottom: 8px; font-weight: 600;">Property Name</label>
         <input type="text" id="property-name" placeholder="e.g., 123 Main Street" 
@@ -390,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <div style="display: flex; gap: 10px; justify-content: flex-end;">
         <button id="confirm-add-property" 
-                style="background: #6366f1; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
+                style="background: #4f46e5; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
           Add Property
         </button>
         <button onclick="document.getElementById('custom-alert').remove()" 
@@ -401,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     document.body.appendChild(alertDiv);
+    makeDialog(alertDiv);
 
     // Add event listener to the button after the element is created
     setTimeout(() => {
@@ -612,11 +637,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <strong style="font-size: 1.2em; color: #f8fafc;">£${expense.amount.toFixed(2)}</strong>
-            <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">${esc(expense.description)}</div>
-            ${property ? `<div style="color: #6366f1; font-size: 0.8em; margin-top: 2px;">${esc(property.name)}</div>` : ''}
+            <div style="color: #cbd5e1; font-size: 0.9em; margin-top: 4px;">${esc(expense.description)}</div>
+            ${property ? `<div style="color: #a5b4fc; font-size: 0.8em; margin-top: 2px;">${esc(property.name)}</div>` : ''}
           </div>
           <div style="text-align: right;">
-            <div style="font-weight: 600; color: #6366f1;">${esc(expense.date)}</div>
+            <div style="font-weight: 600; color: #a5b4fc;">${esc(expense.date)}</div>
             <div class="status-badge status-pending" style="margin-top: 4px;">${esc(expense.category)}</div>
           </div>
         </div>
@@ -686,22 +711,22 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div>
             <strong style="color: #f8fafc;">${esc(property.tenant.name)}</strong>
-            <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">
+            <div style="color: #cbd5e1; font-size: 0.9em; margin-top: 4px;">
               📞 ${esc(property.tenant.contact || 'Not provided')}
             </div>
-            <div style="color: #6366f1; font-size: 0.9em; margin-top: 2px;">
+            <div style="color: #a5b4fc; font-size: 0.9em; margin-top: 2px;">
               🏠 ${esc(property.name)}
             </div>
-            <div style="color: #10b981; font-size: 0.9em; margin-top: 2px; font-weight: 600;">
+            <div style="color: #34d399; font-size: 0.9em; margin-top: 2px; font-weight: 600;">
               💰 £${esc(property.tenant.rentAmount || '0.00')} / month
             </div>
           </div>
           <div style="text-align: right;">
-            <div style="font-weight: 600; color: #6366f1;">Lease</div>
-            <div style="color: #94a3b8; font-size: 0.8em;">
+            <div style="font-weight: 600; color: #a5b4fc;">Lease</div>
+            <div style="color: #cbd5e1; font-size: 0.8em;">
               ${esc(property.tenant.leaseStart || 'Not set')} to ${esc(property.tenant.leaseEnd || 'Not set')}
             </div>
-            <button onclick="editTenant('${esc(property.id)}')" style="background: #6366f1; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; cursor: pointer;">
+            <button onclick="editTenant('${esc(property.id)}')" style="background: #4f46e5; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; cursor: pointer;">
               Edit
             </button>
           </div>
@@ -759,14 +784,14 @@ document.addEventListener('DOMContentLoaded', function() {
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <input type="checkbox" id="complete-${esc(reminder.id)}" ${reminder.completed ? 'checked' : ''} onchange="toggleReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
+              <input type="checkbox" id="complete-${esc(reminder.id)}" ${reminder.completed ? 'checked' : ''} onchange="toggleReminderStatus(${esc(reminder.id)})" aria-label="Mark ${esc(reminder.name)} done" style="width: 24px; height: 20px; cursor: pointer;">
               <div>
                 <strong>${esc(reminder.name)}</strong><br>
-                <small style="color: #94a3b8;">Due: <input type="date" value="${esc(reminder.dueDate)}" data-id="${esc(reminder.id)}" onchange="updateReminderDate(${esc(reminder.id)}, this.value)" style="margin-top: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;"></small>
+                <small style="color: #cbd5e1;">Due: <input type="date" value="${esc(reminder.dueDate)}" data-id="${esc(reminder.id)}" onchange="updateReminderDate(${esc(reminder.id)}, this.value)" aria-label="Due date for ${esc(reminder.name)}" style="margin-top: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;"></small>
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="remove-btn" onclick="deleteReminder(${esc(reminder.id)})" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
+              <button class="remove-btn" onclick="deleteReminder(${esc(reminder.id)})" style="background: #b91c1c; padding: 6px 10px; font-size: 0.75rem;">Delete</button>
               <div class="status-badge ${reminder.completed ? 'status-completed' : 'status-pending'}">${reminder.completed ? 'COMPLETED' : 'PENDING'}</div>
             </div>
           </div>
@@ -790,7 +815,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <label for="new-aob-date">Due Date</label>
           <input type="date" id="new-aob-date" style="margin-top: 8px;">
         </div>
-        <button class="btn" onclick="addNewAOB()" style="background: linear-gradient(135deg, #06b6d4, #0ea5e9); margin-top: 12px;">+ Add AOB Reminder</button>
+        <button class="btn" onclick="addNewAOB()" style="background: linear-gradient(135deg, #0e7490, #0369a1); margin-top: 12px;">+ Add AOB Reminder</button>
       </div>
     `;
     container.appendChild(aobForm);
@@ -819,15 +844,15 @@ document.addEventListener('DOMContentLoaded', function() {
         aobDiv.style.marginBottom = '10px';
         aobDiv.innerHTML = `
           <div style="display: flex; align-items: center; gap: 12px;">
-            <input type="checkbox" id="complete-aob-${esc(aob.id)}" ${aob.completed ? 'checked' : ''} onchange="toggleAOBStatus('${esc(aob.id)}')" style="width: 20px; height: 20px; cursor: pointer;">
+            <input type="checkbox" id="complete-aob-${esc(aob.id)}" ${aob.completed ? 'checked' : ''} onchange="toggleAOBStatus('${esc(aob.id)}')" aria-label="Mark ${esc(aob.name)} done" style="width: 24px; height: 20px; cursor: pointer;">
             <div style="flex: 1;">
               <div><strong>${esc(aob.name || 'Untitled Reminder')}</strong></div>
-              <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">
+              <div style="color: #cbd5e1; font-size: 0.9em; margin-top: 4px;">
                 Due: ${esc(aob.dueDate || 'Not set')}
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="remove-btn" onclick="deleteAOBReminder('${esc(aob.id)}')" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
+              <button class="remove-btn" onclick="deleteAOBReminder('${esc(aob.id)}')" style="background: #b91c1c; padding: 6px 10px; font-size: 0.75rem;">Delete</button>
               <div class="status-badge ${aob.completed ? 'status-completed' : 'status-pending'}">${aob.completed ? 'COMPLETED' : 'PENDING'}</div>
             </div>
           </div>
@@ -931,33 +956,33 @@ document.addEventListener('DOMContentLoaded', function() {
       dashboardHTML += `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
           <div>
-            <h3 style="color: #6366f1; margin-bottom: 8px;">Property</h3>
+            <h3 style="color: #a5b4fc; margin-bottom: 8px;">Property</h3>
             <p style="font-size: 1.1em; font-weight: 600;">${esc(currentProperty.name)}</p>
-            <p style="color: #94a3b8; font-size: 0.9em;">${esc(currentProperty.address || 'No address provided')}</p>
+            <p style="color: #cbd5e1; font-size: 0.9em;">${esc(currentProperty.address || 'No address provided')}</p>
           </div>
       `;
 
       if (currentProperty.tenant) {
         dashboardHTML += `
           <div>
-            <h3 style="color: #6366f1; margin-bottom: 8px;">Tenant</h3>
+            <h3 style="color: #a5b4fc; margin-bottom: 8px;">Tenant</h3>
             <p style="font-size: 1.1em; font-weight: 600;">${esc(currentProperty.tenant.name)}</p>
-            <p style="color: #94a3b8; font-size: 0.9em;">${esc(currentProperty.tenant.contact || 'No contact provided')}</p>
+            <p style="color: #cbd5e1; font-size: 0.9em;">${esc(currentProperty.tenant.contact || 'No contact provided')}</p>
           </div>
           <div>
-            <h3 style="color: #6366f1; margin-bottom: 8px;">Lease</h3>
-            <p style="color: #94a3b8;">${esc(currentProperty.tenant.leaseStart || 'Not set')} to ${esc(currentProperty.tenant.leaseEnd || 'Not set')}</p>
+            <h3 style="color: #a5b4fc; margin-bottom: 8px;">Lease</h3>
+            <p style="color: #cbd5e1;">${esc(currentProperty.tenant.leaseStart || 'Not set')} to ${esc(currentProperty.tenant.leaseEnd || 'Not set')}</p>
           </div>
           <div>
-            <h3 style="color: #6366f1; margin-bottom: 8px;">Monthly Rent</h3>
-            <p style="font-size: 1.3em; font-weight: 700; color: #10b981;">£${esc(currentProperty.tenant.rentAmount || '0.00')}</p>
+            <h3 style="color: #a5b4fc; margin-bottom: 8px;">Monthly Rent</h3>
+            <p style="font-size: 1.3em; font-weight: 700; color: #34d399;">£${esc(currentProperty.tenant.rentAmount || '0.00')}</p>
           </div>
         `;
       } else {
         dashboardHTML += `
           <div>
-            <h3 style="color: #6366f1; margin-bottom: 8px;">Tenant</h3>
-            <p style="color: #94a3b8;">No tenant assigned</p>
+            <h3 style="color: #a5b4fc; margin-bottom: 8px;">Tenant</h3>
+            <p style="color: #cbd5e1;">No tenant assigned</p>
           </div>
           <div></div>
           <div></div>
@@ -966,8 +991,8 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       dashboardHTML += `
         <div style="text-align: center;">
-          <p style="color: #94a3b8; margin-bottom: 16px;">No properties added yet</p>
-          <button class="btn" onclick="showSetupWizard()" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+          <p style="color: #cbd5e1; margin-bottom: 16px;">No properties added yet</p>
+          <button class="btn" onclick="showSetupWizard()" style="background: linear-gradient(135deg, #4f46e5, #7c3aed);">
             ⚡ 60-second setup
           </button>
           <p style="margin-top: 12px;"><a href="?demo" class="demo-link">Just looking? Try the demo with sample data →</a></p>
@@ -1037,14 +1062,14 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="reminder-item">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="checkbox" id="dashboard-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
+                <input type="checkbox" id="dashboard-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" aria-label="Mark ${esc(reminder.name)} done" style="width: 24px; height: 20px; cursor: pointer;">
                 <div>
                   <strong>${esc(reminder.name)}</strong>
-                  <div style="font-size: 0.9em; color: #94a3b8;">Due: ${esc(reminder.dueDate)}</div>
+                  <div style="font-size: 0.9em; color: #cbd5e1;">Due: ${esc(reminder.dueDate)}</div>
                 </div>
               </div>
               <div style="text-align: right;">
-                <div style="font-weight: 600; color: #6366f1;">${daysText}</div>
+                <div style="font-weight: 600; color: #a5b4fc;">${daysText}</div>
                 <div class="status-badge status-pending">PENDING</div>
               </div>
             </div>
@@ -1062,7 +1087,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (overdueReminders.length > 0) {
       dashboardHTML += `
         <div class="dashboard-section">
-          <h2 style="color: #ef4444;">⚠️ Overdue Reminders!</h2>
+          <h2 style="color: #f87171;">⚠️ Overdue Reminders!</h2>
           <div id="overdue-reminders">
       `;
       overdueReminders.forEach(reminder => {
@@ -1071,14 +1096,14 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="reminder-item overdue">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="checkbox" id="dashboard-overdue-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
+                <input type="checkbox" id="dashboard-overdue-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" aria-label="Mark ${esc(reminder.name)} done" style="width: 24px; height: 20px; cursor: pointer;">
                 <div>
-                  <strong style="color: #ef4444;">${esc(reminder.name)}</strong>
-                  <div style="font-size: 0.9em; color: #ef4444;">Due: ${esc(reminder.dueDate)}</div>
+                  <strong style="color: #f87171;">${esc(reminder.name)}</strong>
+                  <div style="font-size: 0.9em; color: #f87171;">Due: ${esc(reminder.dueDate)}</div>
                 </div>
               </div>
               <div style="text-align: right;">
-                <div style="font-weight: 600; color: #ef4444;">${daysOverdue} days overdue</div>
+                <div style="font-weight: 600; color: #f87171;">${daysOverdue} days overdue</div>
                 <div class="status-badge status-pending">OVERDUE</div>
               </div>
             </div>
@@ -1111,8 +1136,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function scoreRing(score, level, size) {
-    return `<div class="score-ring level-${level}" style="--p:${score}; --size:${size}px">
-      <span class="score-num" data-target="${score}">${score}</span></div>`;
+    return `<div class="score-ring level-${level}" style="--p:${score}; --size:${size}px" role="img" aria-label="Compliance score ${score} out of 100">
+      <span class="score-num" data-target="${score}" aria-hidden="true">${score}</span></div>`;
   }
 
   function renderCompliance(property) {
@@ -1123,7 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
       : 'A few important checks are missing. Start at the top.';
     const rows = r.items.map(item => `
       <div class="check-row status-${item.status}">
-        <span class="check-icon">${STATUS_ICON[item.status]}</span>
+        <span class="check-icon" aria-hidden="true">${STATUS_ICON[item.status]}</span>
         <div class="check-text">
           <strong>${esc(item.label)}</strong>
           <small>${statusText(item)} · ${esc(item.hint)} · <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Official guidance ↗</a></small>
@@ -1151,6 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function animateScores(root) {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     root.querySelectorAll('.score-num[data-target]').forEach(el => {
       const target = Number(el.dataset.target);
       const ring = el.parentElement;
@@ -1277,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ul { list-style: none; padding: 0; } li { padding: 3px 0; }
         table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; }
         td { height: 28px; } .meta { color: #555; } .note { color: #555; font-size: 12px; margin-top: 24px; }
-        .print { background: #6366f1; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+        .print { background: #4f46e5; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
         @media print { .print { display: none; } body { margin: 0; } }
       </style></head><body>
       <button class="print" onclick="window.print()">🖨️ Print or save as PDF</button>
@@ -1346,9 +1372,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const overlay = document.createElement('div');
     overlay.id = 'setup-wizard';
     overlay.className = 'wizard-overlay';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Property setup');
     document.body.appendChild(overlay);
+    makeDialog(overlay);
     const dates = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'date');
     const yeses = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'yes');
     let step = 0;
@@ -1377,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', function() {
         frame(`
           <p class="wizard-kicker">Step 1 of 3 · about 60 seconds</p>
           <h3>What do you call this property?</h3>
-          <input id="wz-name" type="text" maxlength="60" placeholder="e.g. Flat 2, Oak Street house" value="${esc(answers.name)}">
+          <input id="wz-name" type="text" aria-label="Property name" maxlength="60" placeholder="e.g. Flat 2, Oak Street house" value="${esc(answers.name)}">
           <label class="wizard-label" for="wz-rent">Monthly rent (optional)</label>
           <input id="wz-rent" type="number" min="0" step="1" placeholder="£" value="${esc(answers.rent)}">
           <p class="wizard-hint">🔒 Stays on this device. No account, no sign-up.</p>
@@ -1410,7 +1436,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <p class="wizard-kicker">All set</p>
           <h3>Your compliance score</h3>
           <div class="wizard-score">${scoreRing(r.score, r.level, 150)}</div>
-          ${todo.length ? `<p class="wizard-hint">Next to fix:</p><ul class="wizard-todo">${todo.map(i => `<li>${STATUS_ICON[i.status]} ${esc(i.label)}</li>`).join('')}</ul>`
+          ${todo.length ? `<p class="wizard-hint">Next to fix:</p><ul class="wizard-todo">${todo.map(i => `<li><span aria-hidden="true">${STATUS_ICON[i.status]}</span> ${esc(i.label)}</li>`).join('')}</ul>`
             : '<p class="wizard-hint">🎉 Every check is complete. Nice work.</p>'}`, 'Go to my dashboard');
         animateScores(overlay);
       }
@@ -1540,7 +1566,7 @@ document.addEventListener('DOMContentLoaded', function() {
     box.style.marginTop = '20px';
     box.style.textAlign = 'center';
     box.innerHTML = `
-      <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: #94a3b8;">
+      <p style="margin: 0 0 12px 0; font-size: 0.9rem; color: #cbd5e1;">
         🔒 Your data is stored only in this browser on this device. Nothing is sent to any server.
         Clearing browser data deletes it, so export a backup regularly and store it securely.
       </p>
@@ -1564,6 +1590,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Add active class to clicked button
         button.classList.add('active');
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.removeAttribute('aria-current'));
+        button.setAttribute('aria-current', 'page');
 
         // Show corresponding tab
         const tabId = button.getAttribute('data-tab');
