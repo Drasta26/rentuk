@@ -27,21 +27,22 @@
 
   // Compliance checklist (England, private rented sector). Informational only, not legal advice.
   // kind 'date' = date of last certificate/check, valid for `months`; kind 'yes' = done or not.
+  // Checked against GOV.UK and HSE on 30 Oct 2026 (Renters' Rights Act changes from 1 May 2026).
   const COMPLIANCE_ITEMS = [
-    { key: 'gas', label: 'Gas safety certificate', kind: 'date', months: 12,
-      hint: 'Check by a Gas Safe engineer every 12 months', url: 'https://www.gov.uk/renting-out-a-property/your-responsibilities' },
+    { key: 'gas', label: 'Gas safety check', kind: 'date', months: 12,
+      hint: 'Gas Safe engineer every 12 months; copy to tenants within 28 days', url: 'https://www.hse.gov.uk/gas/domestic/faqlandlord.htm' },
     { key: 'eicr', label: 'Electrical safety (EICR)', kind: 'date', months: 60,
-      hint: 'Inspection at least every 5 years', url: 'https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-rented-sector-guidance-for-landlords-tenants-and-local-authorities' },
+      hint: 'Qualified inspector at least every 5 years', url: 'https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-and-social-rented-sectors-guidance' },
     { key: 'epc', label: 'Energy certificate (EPC)', kind: 'date', months: 120,
-      hint: 'Valid for 10 years', url: 'https://www.gov.uk/buy-sell-your-home/energy-performance-certificates' },
+      hint: 'Valid for 10 years', url: 'https://www.gov.uk/selling-a-home/energy-performance-certificates' },
     { key: 'deposit', label: 'Deposit protected', kind: 'yes',
-      hint: 'In a government-backed scheme', url: 'https://www.gov.uk/tenancy-deposit-protection' },
+      hint: 'In a government-backed scheme within 30 days', url: 'https://www.gov.uk/tenancy-deposit-protection' },
     { key: 'alarms', label: 'Smoke and CO alarms', kind: 'yes',
-      hint: 'Fitted and tested at the start of each tenancy', url: 'https://www.gov.uk/renting-out-a-property/your-responsibilities' },
+      hint: 'Fitted, and working on the first day of each tenancy', url: 'https://www.gov.uk/government/publications/smoke-and-carbon-monoxide-alarms-explanatory-booklet-for-landlords/the-smoke-and-carbon-monoxide-alarm-england-regulations-2015-qa-booklet-for-the-private-rented-sector-landlords-and-tenants' },
     { key: 'rightToRent', label: 'Right to Rent checked', kind: 'yes',
       hint: 'Before the tenancy starts', url: 'https://www.gov.uk/check-tenant-right-to-rent-documents' },
-    { key: 'howToRent', label: 'How to Rent guide given', kind: 'yes',
-      hint: 'Latest version from GOV.UK', url: 'https://www.gov.uk/government/publications/how-to-rent' }
+    { key: 'rraInfo', label: "Renters' Rights info given", kind: 'yes',
+      hint: 'Official Information Sheet or written terms (replaced How to Rent from 1 May 2026)', url: 'https://www.gov.uk/government/publications/the-renters-rights-act-information-sheet-2026' }
   ];
 
   function addMonths(isoDate, months) {

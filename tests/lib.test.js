@@ -115,7 +115,7 @@ const { complianceScore, cleanCompliance } = require('../lib.js');
 test('complianceScore is 0 for an empty checklist and 100 when all current', () => {
   assert.equal(complianceScore({}, '2026-10-30').score, 0);
   const all = { gas: '2026-06-01', eicr: '2025-01-01', epc: '2020-01-01',
-    deposit: true, alarms: true, rightToRent: true, howToRent: true };
+    deposit: true, alarms: true, rightToRent: true, rraInfo: true };
   const r = complianceScore(all, '2026-10-30');
   assert.equal(r.score, 100);
   assert.equal(r.level, 'great');
@@ -138,4 +138,8 @@ test('cleanCompliance keeps only known keys with valid values', () => {
     { gas: '2026-01-01', alarms: true }
   );
   assert.deepEqual(cleanCompliance(null), {});
+});
+
+test('cleanCompliance drops the withdrawn How to Rent answer', () => {
+  assert.deepEqual(cleanCompliance({ howToRent: true, rraInfo: true }), { rraInfo: true });
 });

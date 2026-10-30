@@ -1120,7 +1120,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <span class="check-icon">${STATUS_ICON[item.status]}</span>
         <div class="check-text">
           <strong>${esc(item.label)}</strong>
-          <small>${statusText(item)} · ${esc(item.hint)} · <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">GOV.UK ↗</a></small>
+          <small>${statusText(item)} · ${esc(item.hint)} · <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Official guidance ↗</a></small>
         </div>
         ${item.kind === 'yes'
           ? `<button class="check-toggle ${item.status === 'ok' ? 'on' : ''}" data-check="${esc(item.key)}" aria-pressed="${item.status === 'ok'}">${item.status === 'ok' ? 'Yes' : 'No'}</button>`
@@ -1139,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
           </div>
           <div class="check-list">${rows}</div>
-          <p class="score-note">England rules, simplified. Informational only, not legal advice. Check GOV.UK for your situation.</p>
+          <p class="score-note">England rules, simplified, checked against GOV.UK and HSE guidance on 30 Oct 2026. Informational only, not legal advice.</p>
         </div>
       </div>`;
   }

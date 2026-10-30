@@ -36,7 +36,7 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.
 - `script.js` is one large file; splitting into modules is on the roadmap.
-- Compliance intervals (gas 12 months, EICR 5 years, EPC 10 years) and GOV.UK links are from general knowledge and are unverified: check each against GOV.UK, and any Renters' Rights Act changes, before release.
+- Compliance rules were checked against GOV.UK and HSE on 30 Oct 2026. How to Rent (withdrawn 1 May 2026) is replaced by the Renters' Rights Act Information Sheet / written terms. Re-check before each release; rules change. Not checked: EPC minimum rating, Wales/Scotland/NI rules.
 - The old `showAddPropertyForm` dialog is no longer used by any button.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosting not chosen (any static host works; still no data leaves the device).
