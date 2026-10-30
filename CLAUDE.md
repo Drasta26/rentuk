@@ -31,7 +31,10 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - Compliance Score (0-100) per property on the dashboard: 7 England checks (gas, EICR, EPC, deposit, alarms, Right to Rent, How to Rent), editable inline, each linked to GOV.UK. Logic in `lib.js` (`complianceScore`).
 - 60-second setup wizard: opens on first launch and from "+ Add Property"; ends by showing the score.
 - Share card: 1080x1080 PNG of the score only (no names, addresses or tenant details), via the device share sheet or a download.
-- Unit tests: `npm test` (Node 20+, no packages), 15 passing on 30 Oct 2026.
+- Tax year estimate (all properties): projected rent from lease dates, expenses or the £1,000 property allowance (whichever is bigger), tax at 20/40/45%, and a Making Tax Digital flag (£50k from Apr 2026, £30k from Apr 2027, £20k from Apr 2028, income before expenses). Checked on GOV.UK 30 Oct 2026. Not modelled: mortgage interest credit, other income, joint ownership, personal allowance.
+- Calendar export: certificate renewal dates and open reminders as an .ics file with a 14-day alert.
+- Tenant move-in pack: printable checklist (before move-in, move-in day, within 30 days), meters, keys, inventory and signatures; opens in a new window.
+- Unit tests: `npm test` (Node 20+, no packages), 20 passing on 30 Oct 2026.
 
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.

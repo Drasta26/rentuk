@@ -76,6 +76,88 @@
     return { score, level, items };
   }
 
+
+  // ---- Tax estimate (UK tax year 6 April to 5 April). Rough guide only, not tax advice. ----
+  // Checked against GOV.UK on 30 Oct 2026: MTD for Income Tax thresholds use income before expenses;
+  // property allowance is £1,000 and cannot be combined with actual expenses.
+  const PROPERTY_ALLOWANCE = 1000;
+  const MTD_STAGES = [
+    { over: 50000, from: '6 April 2026' },
+    { over: 30000, from: '6 April 2027' },
+    { over: 20000, from: '6 April 2028' }
+  ];
+
+  function taxYearStart(iso) {
+    const y = Number(iso.slice(0, 4));
+    return iso.slice(5) >= '04-06' ? y : y - 1;
+  }
+
+  function taxYear(startYear) {
+    return {
+      start: `${startYear}-04-06`, end: `${startYear + 1}-04-05`,
+      label: `${startYear}/${String(startYear + 1).slice(2)}`
+    };
+  }
+
+  // Days in [a, b] (inclusive ISO dates) that overlap [c, d].
+  function overlapDays(a, b, c, d) {
+    const from = a > c ? a : c, to = b < d ? b : d;
+    return to < from ? 0 : daysBetween(from, to) + 1;
+  }
+
+  function rentalEstimate(properties, expenses, startYear) {
+    const ty = taxYear(startYear);
+    const yearDays = daysBetween(ty.start, ty.end) + 1;
+    const rows = (properties || []).map(p => {
+      const t = p.tenant || {};
+      const rent = parseFloat(t.rentAmount) || 0;
+      const leaseFrom = date(t.leaseStart) || ty.start;
+      const leaseTo = date(t.leaseEnd) || ty.end;
+      const income = rent * 12 * overlapDays(ty.start, ty.end, leaseFrom, leaseTo) / yearDays;
+      const costs = (expenses || [])
+        .filter(e => e.propertyId === p.id && date(e.date) && e.date >= ty.start && e.date <= ty.end)
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      return { id: p.id, name: p.name, income: Math.round(income), costs: Math.round(costs * 100) / 100 };
+    });
+    const income = rows.reduce((s, r) => s + r.income, 0);
+    const costs = rows.reduce((s, r) => s + r.costs, 0);
+    const allowance = Math.min(PROPERTY_ALLOWANCE, income);
+    const useAllowance = allowance > costs;
+    const profit = Math.max(0, income - (useAllowance ? allowance : costs));
+    const stage = MTD_STAGES.find(m => income > m.over);
+    return {
+      taxYear: ty, rows, income, costs: Math.round(costs * 100) / 100, useAllowance, profit,
+      taxAt: { basic: Math.round(profit * 0.2), higher: Math.round(profit * 0.4), additional: Math.round(profit * 0.45) },
+      mtd: stage ? { due: true, from: stage.from, over: stage.over } : { due: false }
+    };
+  }
+
+  // ---- Calendar export (iCalendar, RFC 5545) ----
+  function icsText(v) {
+    return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  }
+
+  function buildIcs(events, stampIso) {
+    const stamp = stampIso.replace(/[-:]/g, '').slice(0, 15) + 'Z';
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RentUK//Reminders//EN', 'CALSCALE:GREGORIAN'];
+    for (const e of events) {
+      if (!DATE_RE.test(e.date || '')) continue;
+      const day = e.date.replace(/-/g, '');
+      const next = addDays(e.date, 1).replace(/-/g, '');
+      lines.push('BEGIN:VEVENT', `UID:${icsText(e.uid)}@rentuk`, `DTSTAMP:${stamp}`,
+        `DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${next}`, `SUMMARY:${icsText(e.title)}`);
+      if (e.description) lines.push(`DESCRIPTION:${icsText(e.description)}`);
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.title)}`, 'TRIGGER:-P14D', 'END:VALARM', 'END:VEVENT');
+    }
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  function addDays(iso, n) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+  }
+
   function cleanCompliance(c) {
     const out = {};
     if (!c || typeof c !== 'object') return out;
@@ -157,7 +239,8 @@
   }
 
   const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll,
-    COMPLIANCE_ITEMS, complianceScore, cleanCompliance, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
+    COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
+    taxYearStart, taxYear, rentalEstimate, buildIcs, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = RentUKLib;
   else root.RentUKLib = RentUKLib;

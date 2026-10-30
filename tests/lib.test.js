@@ -143,3 +143,44 @@ test('cleanCompliance keeps only known keys with valid values', () => {
 test('cleanCompliance drops the withdrawn How to Rent answer', () => {
   assert.deepEqual(cleanCompliance({ howToRent: true, rraInfo: true }), { rraInfo: true });
 });
+
+const { taxYearStart, rentalEstimate, buildIcs } = require('../lib.js');
+
+test('taxYearStart uses the 6 April boundary', () => {
+  assert.equal(taxYearStart('2026-04-05'), 2025);
+  assert.equal(taxYearStart('2026-04-06'), 2026);
+  assert.equal(taxYearStart('2027-01-10'), 2026);
+});
+
+test('rentalEstimate uses expenses or the £1,000 allowance, whichever is bigger', () => {
+  const props = [{ id: 'a', name: 'A', tenant: { rentAmount: '1000' } }];
+  const low = rentalEstimate(props, [{ propertyId: 'a', date: '2026-05-01', amount: 200 }], 2026);
+  assert.equal(low.income, 12000);
+  assert.equal(low.useAllowance, true);
+  assert.equal(low.profit, 11000);
+  const high = rentalEstimate(props, [
+    { propertyId: 'a', date: '2026-05-01', amount: 3000 },
+    { propertyId: 'a', date: '2026-04-05', amount: 9999 } // previous tax year
+  ], 2026);
+  assert.equal(high.useAllowance, false);
+  assert.equal(high.profit, 9000);
+  assert.equal(high.taxAt.basic, 1800);
+});
+
+test('rentalEstimate pro-rates rent to the lease and flags MTD by gross income', () => {
+  const half = rentalEstimate([{ id: 'a', tenant: { rentAmount: '1000', leaseStart: '2026-10-06' } }], [], 2026);
+  assert.ok(half.income > 5900 && half.income < 6100);
+  const big = rentalEstimate([{ id: 'a', tenant: { rentAmount: '2600' } }], [], 2026);
+  assert.deepEqual(big.mtd, { due: true, from: '6 April 2027', over: 30000 });
+  assert.equal(half.mtd.due, false);
+});
+
+test('buildIcs makes all-day events with escaped text and CRLF lines', () => {
+  const ics = buildIcs([{ uid: 'gas-a', date: '2026-11-15', title: 'Gas check, Flat 2', description: 'Line1\nLine2; x' },
+    { uid: 'x', date: 'bad', title: 'skip' }], '2026-10-30T12:00:00.000Z');
+  assert.match(ics, /DTSTART;VALUE=DATE:20261115\r\nDTEND;VALUE=DATE:20261116/);
+  assert.match(ics, /SUMMARY:Gas check\\, Flat 2/);
+  assert.match(ics, /DESCRIPTION:Line1\\nLine2\\; x/);
+  assert.match(ics, /DTSTAMP:20261030T120000Z/);
+  assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 1);
+});

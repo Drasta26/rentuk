@@ -971,7 +971,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dashboardHTML += `</div></div>`;
 
-    if (currentProperty) dashboardHTML += renderCompliance(currentProperty);
+    if (currentProperty) dashboardHTML += renderCompliance(currentProperty) + renderTools() + renderTaxEstimate();
 
     // Financial summary (only if we have a current property)
     if (currentProperty) {
@@ -1177,7 +1177,151 @@ document.addEventListener('DOMContentLoaded', function() {
       input.addEventListener('change', () => updateCompliance(input.dataset.check, input.value)));
     const share = root.querySelector('#share-score-btn');
     if (share) share.addEventListener('click', shareScore);
+    const cal = root.querySelector('#calendar-btn');
+    if (cal) cal.addEventListener('click', exportCalendar);
+    const pack = root.querySelector('#move-in-btn');
+    if (pack) pack.addEventListener('click', openMoveInPack);
     animateScores(root);
+  }
+
+
+  // ---- Quick tools ----
+  function renderTools() {
+    return `
+      <div class="tool-row">
+        <button class="tool-btn" id="calendar-btn"><span>📅</span>Add renewals to my calendar</button>
+        <button class="tool-btn" id="move-in-btn"><span>📋</span>Tenant move-in pack</button>
+      </div>`;
+  }
+
+  // ---- Tax estimate ----
+  const money = n => '£' + Math.round(n).toLocaleString('en-GB');
+
+  function renderTaxEstimate() {
+    const est = RentUKLib.rentalEstimate(properties, expenses, RentUKLib.taxYearStart(todayIso()));
+    const rows = est.rows.length > 1 ? est.rows.map(r => `
+      <tr><td>${esc(r.name)}</td><td>${money(r.income)}</td><td>${money(r.costs)}</td></tr>`).join('') : '';
+    const mtd = est.mtd.due
+      ? `<div class="mtd mtd-due">📲 <strong>Making Tax Digital likely applies from ${esc(est.mtd.from)}</strong> — your rental income is over ${money(est.mtd.over)}. That means quarterly updates to HMRC with compatible software.</div>`
+      : `<div class="mtd">✅ Rental income alone is under £20,000, so Making Tax Digital for Income Tax is not triggered by it. Self-employment income also counts towards the threshold.</div>`;
+    return `
+      <div class="dashboard-section">
+        <h2>💷 Tax Year ${esc(est.taxYear.label)} Estimate</h2>
+        <div class="card tax-card">
+          <div class="tax-grid">
+            <div><small>Rent (projected)</small><strong>${money(est.income)}</strong></div>
+            <div><small>${est.useAllowance ? 'Property allowance' : 'Expenses'}</small><strong>− ${money(est.useAllowance ? Math.min(1000, est.income) : est.costs)}</strong></div>
+            <div><small>Taxable profit</small><strong class="tax-profit">${money(est.profit)}</strong></div>
+          </div>
+          <p class="tax-bands">Tax on that profit: about <strong>${money(est.taxAt.basic)}</strong> at basic rate (20%), <strong>${money(est.taxAt.higher)}</strong> at higher rate (40%), or <strong>${money(est.taxAt.additional)}</strong> at additional rate (45%).</p>
+          ${est.useAllowance && est.income > 0 ? '<p class="tax-tip">💡 Your expenses are under £1,000, so the £1,000 property allowance gives the lower profit. You can use one or the other, not both.</p>' : ''}
+          ${mtd}
+          ${rows ? `<table class="tax-table"><thead><tr><th>Property</th><th>Rent</th><th>Expenses</th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+          <p class="score-note">Rough guide, not tax advice. Based on rent × lease dates in this tax year (6 Apr–5 Apr) and the expenses you have entered. Does not include mortgage interest relief, other income, joint ownership or personal allowance. Check with HMRC or an accountant.</p>
+        </div>
+      </div>`;
+  }
+
+  // ---- Calendar export ----
+  function exportCalendar() {
+    const events = [];
+    const today = todayIso();
+    properties.forEach(p => {
+      RentUKLib.complianceScore(p.compliance, today).items
+        .filter(i => i.expires)
+        .forEach(i => events.push({
+          uid: `${p.id}-${i.key}-${i.expires}`, date: i.expires,
+          title: `Renew ${i.label} – ${p.name}`,
+          description: `${i.hint}. Guidance: ${i.url}`
+        }));
+    });
+    [...reminders, ...aobReminders].filter(r => r.dueDate && !r.completed && r.dueDate >= today)
+      .forEach(r => events.push({ uid: `reminder-${r.id}-${r.dueDate}`, date: r.dueDate, title: r.name }));
+    if (!events.length) {
+      showCustomAlert('Nothing to add yet. Add certificate dates in the Compliance Score, or reminder due dates, then try again.', 'No dates yet');
+      return;
+    }
+    const blob = new Blob([RentUKLib.buildIcs(events, new Date().toISOString())], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'rentuk-reminders.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showCustomAlert(`Saved ${events.length} date${events.length === 1 ? '' : 's'} as rentuk-reminders.ics. Open it to add them to Apple, Google or Outlook calendar — each one alerts you 14 days before.`, 'Calendar file ready');
+  }
+
+  // ---- Tenant move-in pack (printable) ----
+  function openMoveInPack() {
+    const p = getCurrentProperty();
+    if (!p) return;
+    const r = RentUKLib.complianceScore(p.compliance, todayIso());
+    const box = ok => ok ? '☑' : '☐';
+    const item = key => r.items.find(i => i.key === key);
+    const certLine = key => {
+      const i = item(key);
+      return `<li>${box(i.status === 'ok')} ${esc(i.label)}${i.expires ? ` — valid until ${esc(ukDate(i.expires))}` : ''}: copy given to tenant</li>`;
+    };
+    const rooms = ['Entrance / hall', 'Living room', 'Kitchen', 'Bathroom', 'Bedroom 1', 'Bedroom 2', 'Garden / outside'];
+    const t = p.tenant || {};
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Move-in pack – ${esc(p.name)}</title>
+      <style>
+        body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; max-width: 780px; margin: 24px auto; padding: 0 16px; }
+        h1 { font-size: 22px; margin-bottom: 0; } h2 { font-size: 16px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; margin-top: 24px; }
+        ul { list-style: none; padding: 0; } li { padding: 3px 0; }
+        table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; }
+        td { height: 28px; } .meta { color: #555; } .note { color: #555; font-size: 12px; margin-top: 24px; }
+        .print { background: #6366f1; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+        @media print { .print { display: none; } body { margin: 0; } }
+      </style></head><body>
+      <button class="print" onclick="window.print()">🖨️ Print or save as PDF</button>
+      <h1>Tenant move-in pack</h1>
+      <p class="meta">${esc(p.name)}${p.address ? ' · ' + esc(p.address) : ''}<br>
+        Tenant: ${esc(t.name || '____________________')} · Move-in date: ${esc(t.leaseStart ? ukDate(t.leaseStart) : '____________')}</p>
+
+      <h2>1. Before the tenant moves in</h2>
+      <ul>
+        <li>${box(item('rightToRent').status === 'ok')} Right to Rent checked for every adult, copies of documents kept</li>
+        <li>${box(item('rraInfo').status === 'ok')} Renters' Rights Act Information Sheet or written statement of terms given (as a printed copy or attached PDF — a link alone is not valid)</li>
+        ${certLine('gas')}
+        ${certLine('eicr')}
+        ${certLine('epc')}
+      </ul>
+
+      <h2>2. On move-in day</h2>
+      <ul>
+        <li>${box(item('alarms').status === 'ok')} Every smoke alarm and CO alarm tested and working (tenant initials: ______)</li>
+        <li>☐ Inventory below completed and signed by both</li>
+        <li>☐ Meter readings taken (below)</li>
+        <li>☐ Keys handed over (below)</li>
+        <li>☐ Stopcock, boiler, fuse box and alarm locations shown to tenant</li>
+      </ul>
+
+      <h2>3. Within 30 days</h2>
+      <ul>
+        <li>${box(item('deposit').status === 'ok')} Deposit protected in a government-backed scheme and its required information given to the tenant</li>
+      </ul>
+
+      <h2>Meter readings</h2>
+      <table><tr><th>Meter</th><th>Reading</th><th>Serial / location</th></tr>
+        <tr><td>Electricity</td><td></td><td></td></tr><tr><td>Gas</td><td></td><td></td></tr><tr><td>Water</td><td></td><td></td></tr></table>
+
+      <h2>Keys</h2>
+      <table><tr><th>Key / fob</th><th>How many</th></tr>
+        <tr><td>Front door</td><td></td></tr><tr><td>Back door</td><td></td></tr><tr><td>Windows</td><td></td></tr><tr><td>Other</td><td></td></tr></table>
+
+      <h2>Inventory and condition</h2>
+      <table><tr><th style="width:22%">Room</th><th>Items and condition (note marks, damage, cleanliness)</th><th style="width:12%">Photos taken</th></tr>
+        ${rooms.map(room => `<tr><td>${room}</td><td style="height:48px"></td><td>☐</td></tr>`).join('')}</table>
+
+      <h2>Signatures</h2>
+      <table><tr><th>Landlord</th><th>Tenant</th></tr><tr><td style="height:56px">Signed:<br>Date:</td><td>Signed:<br>Date:</td></tr></table>
+
+      <p class="note">Made with RentUK. Checklist for England, based on GOV.UK and HSE guidance checked on 30 Oct 2026. Informational only, not legal advice.</p>
+      </body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
   }
 
   // ---- 60-second setup ----

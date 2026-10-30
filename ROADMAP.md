@@ -27,6 +27,9 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 - [ ] Link each item to official GOV.UK guidance; check every interval against it before release. Informational only, not legal advice.
 
 ## 6. Reports (3-4 h)
+- [x] Tax year estimate with property allowance and Making Tax Digital check.
+- [x] Calendar (.ics) export of renewals and reminders.
+- [x] Printable tenant move-in pack.
 - [ ] Annual income and expense summary per property, exportable as CSV.
 
 ## 7. Usability (4-6 h)
