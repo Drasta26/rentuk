@@ -1,5 +1,6 @@
 // Wait for DOM to be fully loaded before running app
 document.addEventListener('DOMContentLoaded', function() {
+  const esc = window.RentUKLib.escapeHtml;
   // Data storage: this browser's localStorage only. Nothing is sent to any server.
   let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
   let properties = JSON.parse(localStorage.getItem('properties')) || [];
@@ -55,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     alertDiv.innerHTML = `
-      <h3 style="color: #6366f1; margin-bottom: 12px;">${title}</h3>
-      <p style="margin-bottom: 20px; color: #1e293b;">${message}</p>
+      <h3 style="color: #6366f1; margin-bottom: 12px;">${esc(title)}</h3>
+      <p style="margin-bottom: 20px; color: #1e293b;">${esc(message)}</p>
       <button onclick="document.getElementById('custom-alert').remove()" 
               style="background: #6366f1; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
         OK
@@ -297,12 +298,12 @@ document.addEventListener('DOMContentLoaded', function() {
     properties.forEach(property => {
       const isActive = property.id === currentPropertyId;
       selectorHTML += `
-        <button onclick="setCurrentProperty('${property.id}')" 
+        <button onclick="setCurrentProperty('${esc(property.id)}')" 
                 style="padding: 10px 16px; border: 2px solid ${isActive ? '#6366f1' : '#334155'}; 
                        background: ${isActive ? '#6366f1' : 'transparent'}; 
                        color: ${isActive ? 'white' : '#94a3b8'}; 
                        border-radius: 8px; cursor: pointer; font-weight: 600;">
-          ${property.name}
+          ${esc(property.name)}
         </button>
       `;
     });
@@ -322,14 +323,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (expensePropertySelect) {
       expensePropertySelect.innerHTML = '<option value="">Select Property</option>';
       properties.forEach(property => {
-        expensePropertySelect.innerHTML += `<option value="${property.id}">${property.name}</option>`;
+        expensePropertySelect.innerHTML += `<option value="${esc(property.id)}">${esc(property.name)}</option>`;
       });
     }
 
     if (tenantPropertySelect) {
       tenantPropertySelect.innerHTML = '<option value="">Select Property</option>';
       properties.forEach(property => {
-        tenantPropertySelect.innerHTML += `<option value="${property.id}">${property.name}</option>`;
+        tenantPropertySelect.innerHTML += `<option value="${esc(property.id)}">${esc(property.name)}</option>`;
       });
 
       // Auto-select current property if available
@@ -575,12 +576,12 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
             <strong style="font-size: 1.2em; color: #f8fafc;">£${expense.amount.toFixed(2)}</strong>
-            <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">${expense.description}</div>
-            ${property ? `<div style="color: #6366f1; font-size: 0.8em; margin-top: 2px;">${property.name}</div>` : ''}
+            <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">${esc(expense.description)}</div>
+            ${property ? `<div style="color: #6366f1; font-size: 0.8em; margin-top: 2px;">${esc(property.name)}</div>` : ''}
           </div>
           <div style="text-align: right;">
-            <div style="font-weight: 600; color: #6366f1;">${expense.date}</div>
-            <div class="status-badge status-pending" style="margin-top: 4px;">${expense.category}</div>
+            <div style="font-weight: 600; color: #6366f1;">${esc(expense.date)}</div>
+            <div class="status-badge status-pending" style="margin-top: 4px;">${esc(expense.category)}</div>
           </div>
         </div>
       `;
@@ -648,23 +649,23 @@ document.addEventListener('DOMContentLoaded', function() {
       div.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: start;">
           <div>
-            <strong style="color: #f8fafc;">${property.tenant.name}</strong>
+            <strong style="color: #f8fafc;">${esc(property.tenant.name)}</strong>
             <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">
-              📞 ${property.tenant.contact || 'Not provided'}
+              📞 ${esc(property.tenant.contact || 'Not provided')}
             </div>
             <div style="color: #6366f1; font-size: 0.9em; margin-top: 2px;">
-              🏠 ${property.name}
+              🏠 ${esc(property.name)}
             </div>
             <div style="color: #10b981; font-size: 0.9em; margin-top: 2px; font-weight: 600;">
-              💰 £${property.tenant.rentAmount || '0.00'} / month
+              💰 £${esc(property.tenant.rentAmount || '0.00')} / month
             </div>
           </div>
           <div style="text-align: right;">
             <div style="font-weight: 600; color: #6366f1;">Lease</div>
             <div style="color: #94a3b8; font-size: 0.8em;">
-              ${property.tenant.leaseStart || 'Not set'} to ${property.tenant.leaseEnd || 'Not set'}
+              ${esc(property.tenant.leaseStart || 'Not set')} to ${esc(property.tenant.leaseEnd || 'Not set')}
             </div>
-            <button onclick="editTenant('${property.id}')" style="background: #6366f1; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; cursor: pointer;">
+            <button onclick="editTenant('${esc(property.id)}')" style="background: #6366f1; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; margin-top: 8px; cursor: pointer;">
               Edit
             </button>
           </div>
@@ -722,14 +723,14 @@ document.addEventListener('DOMContentLoaded', function() {
         div.innerHTML = `
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <input type="checkbox" id="complete-${reminder.id}" ${reminder.completed ? 'checked' : ''} onchange="toggleReminderStatus(${reminder.id})" style="width: 20px; height: 20px; cursor: pointer;">
+              <input type="checkbox" id="complete-${esc(reminder.id)}" ${reminder.completed ? 'checked' : ''} onchange="toggleReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
               <div>
-                <strong>${reminder.name}</strong><br>
-                <small style="color: #94a3b8;">Due: <input type="date" value="${reminder.dueDate}" data-id="${reminder.id}" onchange="updateReminderDate(${reminder.id}, this.value)" style="margin-top: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;"></small>
+                <strong>${esc(reminder.name)}</strong><br>
+                <small style="color: #94a3b8;">Due: <input type="date" value="${esc(reminder.dueDate)}" data-id="${esc(reminder.id)}" onchange="updateReminderDate(${esc(reminder.id)}, this.value)" style="margin-top: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid #e2e8f0;"></small>
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="remove-btn" onclick="deleteReminder(${reminder.id})" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
+              <button class="remove-btn" onclick="deleteReminder(${esc(reminder.id)})" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
               <div class="status-badge ${reminder.completed ? 'status-completed' : 'status-pending'}">${reminder.completed ? 'COMPLETED' : 'PENDING'}</div>
             </div>
           </div>
@@ -782,15 +783,15 @@ document.addEventListener('DOMContentLoaded', function() {
         aobDiv.style.marginBottom = '10px';
         aobDiv.innerHTML = `
           <div style="display: flex; align-items: center; gap: 12px;">
-            <input type="checkbox" id="complete-aob-${aob.id}" ${aob.completed ? 'checked' : ''} onchange="toggleAOBStatus('${aob.id}')" style="width: 20px; height: 20px; cursor: pointer;">
+            <input type="checkbox" id="complete-aob-${esc(aob.id)}" ${aob.completed ? 'checked' : ''} onchange="toggleAOBStatus('${esc(aob.id)}')" style="width: 20px; height: 20px; cursor: pointer;">
             <div style="flex: 1;">
-              <div><strong>${aob.name || 'Untitled Reminder'}</strong></div>
+              <div><strong>${esc(aob.name || 'Untitled Reminder')}</strong></div>
               <div style="color: #94a3b8; font-size: 0.9em; margin-top: 4px;">
-                Due: ${aob.dueDate || 'Not set'}
+                Due: ${esc(aob.dueDate || 'Not set')}
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <button class="remove-btn" onclick="deleteAOBReminder('${aob.id}')" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
+              <button class="remove-btn" onclick="deleteAOBReminder('${esc(aob.id)}')" style="background: #ef4444; padding: 4px 8px; font-size: 0.75rem;">Delete</button>
               <div class="status-badge ${aob.completed ? 'status-completed' : 'status-pending'}">${aob.completed ? 'COMPLETED' : 'PENDING'}</div>
             </div>
           </div>
@@ -885,7 +886,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let dashboardHTML = `
       <div class="dashboard-section">
-        <h2>${currentProperty ? `🏠 ${currentProperty.name}` : '🏠 Properties Overview'}</h2>
+        <h2>${currentProperty ? `🏠 ${esc(currentProperty.name)}` : '🏠 Properties Overview'}</h2>
         <div class="card">
     `;
 
@@ -895,8 +896,8 @@ document.addEventListener('DOMContentLoaded', function() {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
           <div>
             <h3 style="color: #6366f1; margin-bottom: 8px;">Property</h3>
-            <p style="font-size: 1.1em; font-weight: 600;">${currentProperty.name}</p>
-            <p style="color: #94a3b8; font-size: 0.9em;">${currentProperty.address || 'No address provided'}</p>
+            <p style="font-size: 1.1em; font-weight: 600;">${esc(currentProperty.name)}</p>
+            <p style="color: #94a3b8; font-size: 0.9em;">${esc(currentProperty.address || 'No address provided')}</p>
           </div>
       `;
 
@@ -904,16 +905,16 @@ document.addEventListener('DOMContentLoaded', function() {
         dashboardHTML += `
           <div>
             <h3 style="color: #6366f1; margin-bottom: 8px;">Tenant</h3>
-            <p style="font-size: 1.1em; font-weight: 600;">${currentProperty.tenant.name}</p>
-            <p style="color: #94a3b8; font-size: 0.9em;">${currentProperty.tenant.contact || 'No contact provided'}</p>
+            <p style="font-size: 1.1em; font-weight: 600;">${esc(currentProperty.tenant.name)}</p>
+            <p style="color: #94a3b8; font-size: 0.9em;">${esc(currentProperty.tenant.contact || 'No contact provided')}</p>
           </div>
           <div>
             <h3 style="color: #6366f1; margin-bottom: 8px;">Lease</h3>
-            <p style="color: #94a3b8;">${currentProperty.tenant.leaseStart || 'Not set'} to ${currentProperty.tenant.leaseEnd || 'Not set'}</p>
+            <p style="color: #94a3b8;">${esc(currentProperty.tenant.leaseStart || 'Not set')} to ${esc(currentProperty.tenant.leaseEnd || 'Not set')}</p>
           </div>
           <div>
             <h3 style="color: #6366f1; margin-bottom: 8px;">Monthly Rent</h3>
-            <p style="font-size: 1.3em; font-weight: 700; color: #10b981;">£${currentProperty.tenant.rentAmount || '0.00'}</p>
+            <p style="font-size: 1.3em; font-weight: 700; color: #10b981;">£${esc(currentProperty.tenant.rentAmount || '0.00')}</p>
           </div>
         `;
       } else {
@@ -948,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
       dashboardHTML += `
         <div class="dashboard-section">
-          <h2>📊 Financial Overview - ${currentProperty.name}</h2>
+          <h2>📊 Financial Overview - ${esc(currentProperty.name)}</h2>
           <div class="financial-overview">
             <div class="financial-card income-card">
               <h3>Monthly Income</h3>
@@ -997,10 +998,10 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="reminder-item">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="checkbox" id="dashboard-complete-${reminder.id}" onchange="toggleDashboardReminderStatus(${reminder.id})" style="width: 20px; height: 20px; cursor: pointer;">
+                <input type="checkbox" id="dashboard-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
                 <div>
-                  <strong>${reminder.name}</strong>
-                  <div style="font-size: 0.9em; color: #94a3b8;">Due: ${reminder.dueDate}</div>
+                  <strong>${esc(reminder.name)}</strong>
+                  <div style="font-size: 0.9em; color: #94a3b8;">Due: ${esc(reminder.dueDate)}</div>
                 </div>
               </div>
               <div style="text-align: right;">
@@ -1031,10 +1032,10 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="reminder-item overdue">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="display: flex; align-items: center; gap: 12px;">
-                <input type="checkbox" id="dashboard-overdue-complete-${reminder.id}" onchange="toggleDashboardReminderStatus(${reminder.id})" style="width: 20px; height: 20px; cursor: pointer;">
+                <input type="checkbox" id="dashboard-overdue-complete-${esc(reminder.id)}" onchange="toggleDashboardReminderStatus(${esc(reminder.id)})" style="width: 20px; height: 20px; cursor: pointer;">
                 <div>
-                  <strong style="color: #ef4444;">${reminder.name}</strong>
-                  <div style="font-size: 0.9em; color: #ef4444;">Due: ${reminder.dueDate}</div>
+                  <strong style="color: #ef4444;">${esc(reminder.name)}</strong>
+                  <div style="font-size: 0.9em; color: #ef4444;">Due: ${esc(reminder.dueDate)}</div>
                 </div>
               </div>
               <div style="text-align: right;">
