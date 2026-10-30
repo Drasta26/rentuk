@@ -158,6 +158,43 @@
     return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
   }
 
+
+  // ---- Demo data: made-up records, dated relative to today so the demo never goes stale ----
+  function demoData(todayIso) {
+    const ago = n => addDays(todayIso, -n);
+    const tenant = (name, rent, startAgo) => ({
+      name, contact: name.split(' ')[0].toLowerCase() + '@example.com',
+      leaseStart: ago(startAgo), leaseEnd: addDays(ago(startAgo), 365), rentAmount: String(rent)
+    });
+    const properties = [
+      { id: 'demo_maple', name: 'Maple Court flat (demo)', address: 'Example address',
+        tenant: tenant('Sam Example', 1150, 120), createdAt: todayIso,
+        compliance: { gas: ago(100), eicr: ago(400), epc: ago(1000), deposit: true, alarms: true, rightToRent: true, rraInfo: true } },
+      { id: 'demo_oak', name: 'Oak Lane house (demo)', address: 'Example address',
+        tenant: tenant('Alex Sample', 1450, 300), createdAt: todayIso,
+        compliance: { gas: ago(350), eicr: ago(1900), epc: ago(2000), deposit: true, alarms: true, rightToRent: true } },
+      { id: 'demo_station', name: 'Station Road studio (demo)', address: 'Example address',
+        tenant: tenant('Jo Test', 795, 30), createdAt: todayIso,
+        compliance: { epc: ago(700), deposit: true } }
+    ];
+    const ty = taxYear(taxYearStart(todayIso)).start;
+    const inYear = n => { const d = ago(n); return d < ty ? ty : d; };
+    const expenses = [
+      ['demo_maple', 'Boiler service', 95, 'maintenance', 60],
+      ['demo_maple', 'Landlord insurance', 310, 'insurance', 150],
+      ['demo_oak', 'Gutter repair', 240, 'repairs', 40],
+      ['demo_oak', 'Landlord insurance', 380, 'insurance', 150],
+      ['demo_station', 'Deep clean between tenants', 180, 'other', 35]
+    ].map(([propertyId, description, amount, category, n], i) =>
+      ({ id: 9000 + i, date: inYear(n), description, amount, category, propertyId }));
+    const reminders = [
+      { id: 1, name: '🔥 Gas Safety Check', dueDate: addDays(todayIso, 15), type: 'gas', completed: false, propertyId: null },
+      { id: 4, name: '🛡️ Insurance Renewal', dueDate: addDays(todayIso, 25), type: 'insurance', completed: false, propertyId: null }
+    ];
+    const aobReminders = [{ id: 9100, name: 'Check smoke alarms at Oak Lane', dueDate: addDays(todayIso, 9), completed: false }];
+    return { properties, expenses, reminders, aobReminders, currentPropertyId: 'demo_oak' };
+  }
+
   function cleanCompliance(c) {
     const out = {};
     if (!c || typeof c !== 'object') return out;
@@ -240,7 +277,7 @@
 
   const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
-    taxYearStart, taxYear, rentalEstimate, buildIcs, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
+    taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = RentUKLib;
   else root.RentUKLib = RentUKLib;

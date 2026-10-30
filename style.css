@@ -630,3 +630,13 @@ h3 {
 .mtd-due { background: rgba(245,158,11,0.14); }
 .tax-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.9rem; }
 .tax-table th, .tax-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+
+/* ---- Demo mode ---- */
+.demo-banner {
+  position: sticky; top: 0; z-index: 9000; width: 100%;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 16px;
+  padding: 10px 16px; margin-bottom: 12px; border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #f97316); color: #1c1917; font-size: 0.95rem;
+}
+.demo-exit { color: #1c1917; font-weight: 700; }
+.demo-link { color: var(--accent); }

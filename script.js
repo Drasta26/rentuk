@@ -3,13 +3,17 @@ document.addEventListener('DOMContentLoaded', function() {
   const esc = window.RentUKLib.escapeHtml;
   const { readJson, writeAll } = window.RentUKLib;
   // localStorage itself can throw (e.g. blocked in some private modes), so fall back to an in-memory store.
+  const memoryStore = () => {
+    const mem = {};
+    return { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  };
+  // Demo mode (?demo): made-up data in memory only, so the visitor's real data is never touched.
+  const isDemo = new URLSearchParams(location.search).has('demo');
   let store;
   try { store = window.localStorage; store.getItem('_'); } catch (e) { store = null; }
-  const storageMissing = !store;
-  if (!store) {
-    const mem = {};
-    store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
-  }
+  const storageMissing = !store && !isDemo;
+  if (!store || isDemo) store = memoryStore();
+  if (isDemo) writeAll(store, window.RentUKLib.demoData(new Date().toISOString().slice(0, 10)));
   let storageWarned = false;
   // Data storage: this browser's localStorage only. Nothing is sent to any server.
   let expenses = readJson(store, 'expenses', []);
@@ -134,7 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function initApp() {
     loadLocalData();
     loadMainUI();
-    if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
+    if (isDemo) showDemoBanner();
+    else if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
     else if (properties.length === 0) showSetupWizard();
   }
 
@@ -965,6 +970,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <button class="btn" onclick="showSetupWizard()" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
             ⚡ 60-second setup
           </button>
+          <p style="margin-top: 12px;"><a href="?demo" class="demo-link">Just looking? Try the demo with sample data →</a></p>
         </div>
       `;
     }
@@ -1324,6 +1330,15 @@ document.addEventListener('DOMContentLoaded', function() {
     w.document.open(); w.document.write(html); w.document.close();
   }
 
+  // ---- Demo mode ----
+  function showDemoBanner() {
+    const bar = document.createElement('div');
+    bar.className = 'demo-banner';
+    bar.innerHTML = `<span>👀 <strong>Demo mode</strong> — sample data, nothing is saved.</span>
+      <a href="${esc(location.pathname)}" class="demo-exit">Start with my own property →</a>`;
+    document.getElementById('app').prepend(bar);
+  }
+
   // ---- 60-second setup ----
   function showSetupWizard() {
     if (document.getElementById('setup-wizard')) return;
@@ -1365,7 +1380,8 @@ document.addEventListener('DOMContentLoaded', function() {
           <input id="wz-name" type="text" maxlength="60" placeholder="e.g. Flat 2, Oak Street house" value="${esc(answers.name)}">
           <label class="wizard-label" for="wz-rent">Monthly rent (optional)</label>
           <input id="wz-rent" type="number" min="0" step="1" placeholder="£" value="${esc(answers.rent)}">
-          <p class="wizard-hint">🔒 Stays on this device. No account, no sign-up.</p>`, 'Next →');
+          <p class="wizard-hint">🔒 Stays on this device. No account, no sign-up.</p>
+          <p class="wizard-hint"><a href="?demo" class="demo-link">Just looking? Try the demo first →</a></p>`, 'Next →');
       } else if (step === 1) {
         frame(`
           <p class="wizard-kicker">Step 2 of 3</p>

@@ -34,7 +34,8 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - Tax year estimate (all properties): projected rent from lease dates, expenses or the £1,000 property allowance (whichever is bigger), tax at 20/40/45%, and a Making Tax Digital flag (£50k from Apr 2026, £30k from Apr 2027, £20k from Apr 2028, income before expenses). Checked on GOV.UK 30 Oct 2026. Not modelled: mortgage interest credit, other income, joint ownership, personal allowance.
 - Calendar export: certificate renewal dates and open reminders as an .ics file with a 14-day alert.
 - Tenant move-in pack: printable checklist (before move-in, move-in day, within 30 days), meters, keys, inventory and signatures; opens in a new window.
-- Unit tests: `npm test` (Node 20+, no packages), 20 passing on 30 Oct 2026.
+- Demo mode: open `index.html?demo` (or the link on the setup screen). Loads 3 made-up properties (great, fair and poor scores) into memory only; real saved data is never read or changed. Banner links back to the normal app.
+- Unit tests: `npm test` (Node 20+, no packages), 22 passing on 30 Oct 2026.
 
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.

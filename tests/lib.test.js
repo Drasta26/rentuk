@@ -184,3 +184,20 @@ test('buildIcs makes all-day events with escaped text and CRLF lines', () => {
   assert.match(ics, /DTSTAMP:20261030T120000Z/);
   assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 1);
 });
+
+const { demoData } = require('../lib.js');
+
+test('demoData passes backup validation and shows a range of scores', () => {
+  const d = demoData('2026-10-30');
+  const v = validateBackup(d);
+  assert.equal(v.ok, true);
+  assert.equal(v.skipped, 0);
+  const levels = d.properties.map(p => complianceScore(p.compliance, '2026-10-30').level);
+  assert.deepEqual(levels, ['great', 'fair', 'poor']);
+  assert.ok(d.expenses.every(e => e.date >= '2026-04-06'));
+});
+
+test('demoData triggers the Making Tax Digital flag', () => {
+  const d = demoData('2026-10-30');
+  assert.equal(rentalEstimate(d.properties, d.expenses, 2026).mtd.due, true);
+});

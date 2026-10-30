@@ -34,7 +34,7 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 
 ## 7. Usability (4-6 h)
 - [ ] Mobile layout and accessibility pass (labels, keyboard use, contrast).
-- [ ] Demo mode with made-up sample data.
+- [x] Demo mode with made-up sample data.
 
 ## 8. Release (3-4 h)
 - [ ] Host as a static site (for example GitHub Pages); no data leaves the device.
