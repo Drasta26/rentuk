@@ -3,12 +3,13 @@
 Planned work, in priority order. Hours are rough estimates (about 35-50 hours in total).
 
 ## 1. Security and robustness (4-6 h)
-- [ ] Escape all user text before rendering (replace unescaped `innerHTML`).
-- [ ] Validate backup files on import (schema and size checks) so a crafted file cannot inject script or corrupt data.
+- [x] Escape all user text before rendering (replace unescaped `innerHTML`).
+- [x] Validate backup files on import (schema and size checks) so a crafted file cannot inject script or corrupt data.
 - [ ] Handle full or unavailable `localStorage` gracefully.
 
 ## 2. Tests (6-8 h)
-- [ ] Add a test runner and unit tests for totals, dates and reminder logic.
+- [x] Add a test runner and unit tests for the escaping and backup checks.
+- [ ] Unit tests for totals, dates and reminder logic.
 - [ ] Add browser tests: add property, add expense, reload, export, import.
 - [ ] Run tests on every push with GitHub Actions.
 

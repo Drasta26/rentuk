@@ -15,6 +15,13 @@ Individual UK landlords with one or a few properties who want a free, private to
 
 That's it. There is no server and no account.
 
+## Tests
+Requires Node.js 20 or later. No packages to install.
+
+```
+npm test
+```
+
 ## Data and privacy
 - All data stays in your browser on your device. Nothing is sent to a server or third party.
 - Use **Export** to save a backup file and **Import** to restore it or move to another browser.
