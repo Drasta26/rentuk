@@ -1,11 +1,21 @@
 // Wait for DOM to be fully loaded before running app
 document.addEventListener('DOMContentLoaded', function() {
   const esc = window.RentUKLib.escapeHtml;
+  const { readJson, writeAll } = window.RentUKLib;
+  // localStorage itself can throw (e.g. blocked in some private modes), so fall back to an in-memory store.
+  let store;
+  try { store = window.localStorage; store.getItem('_'); } catch (e) { store = null; }
+  const storageMissing = !store;
+  if (!store) {
+    const mem = {};
+    store = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+  }
+  let storageWarned = false;
   // Data storage: this browser's localStorage only. Nothing is sent to any server.
-  let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-  let properties = JSON.parse(localStorage.getItem('properties')) || [];
-  let currentPropertyId = localStorage.getItem('currentPropertyId') || null;
-  let reminders = JSON.parse(localStorage.getItem('reminders')) || [
+  let expenses = readJson(store, 'expenses', []);
+  let properties = readJson(store, 'properties', []);
+  let currentPropertyId = store.getItem('currentPropertyId') || null;
+  let reminders = readJson(store, 'reminders', null) || [
     { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
     { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
     { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
@@ -15,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ];
 
   // AOB reminders (dynamic)
-  let aobReminders = JSON.parse(localStorage.getItem('aobReminders')) || [];
+  let aobReminders = readJson(store, 'aobReminders', []);
 
   // Get current property
   function getCurrentProperty() {
@@ -25,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Set current property
   function setCurrentProperty(propertyId) {
     currentPropertyId = propertyId;
-    localStorage.setItem('currentPropertyId', propertyId);
+    writeAll(store, { currentPropertyId: String(propertyId) });
     loadDashboard();
     loadExpenses();
     loadReminders();
@@ -428,7 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Set as current property if it's the first one
     if (properties.length === 1) {
       currentPropertyId = newProperty.id;
-      localStorage.setItem('currentPropertyId', currentPropertyId);
+      writeAll(store, { currentPropertyId: String(currentPropertyId) });
     }
 
     saveData();
@@ -440,10 +450,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Load local data
   function loadLocalData() {
-    expenses = JSON.parse(localStorage.getItem('expenses')) || [];
-    properties = JSON.parse(localStorage.getItem('properties')) || [];
-    currentPropertyId = localStorage.getItem('currentPropertyId') || (properties.length > 0 ? properties[0].id : null);
-    reminders = JSON.parse(localStorage.getItem('reminders')) || [
+    expenses = readJson(store, 'expenses', []);
+    properties = readJson(store, 'properties', []);
+    currentPropertyId = store.getItem('currentPropertyId') || (properties.length > 0 ? properties[0].id : null);
+    reminders = readJson(store, 'reminders', null) || [
       { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
       { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
       { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
@@ -451,16 +461,23 @@ document.addEventListener('DOMContentLoaded', function() {
       { id: 5, name: '📊 EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
       { id: 6, name: '🔒 Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
     ];
-    aobReminders = JSON.parse(localStorage.getItem('aobReminders')) || [];
+    aobReminders = readJson(store, 'aobReminders', []);
   }
 
   // Save local data
   function saveLocalData() {
-    localStorage.setItem('expenses', JSON.stringify(expenses));
-    localStorage.setItem('properties', JSON.stringify(properties));
-    localStorage.setItem('currentPropertyId', currentPropertyId);
-    localStorage.setItem('reminders', JSON.stringify(reminders));
-    localStorage.setItem('aobReminders', JSON.stringify(aobReminders));
+    const result = writeAll(store, {
+      expenses, properties, reminders, aobReminders,
+      currentPropertyId: currentPropertyId === null ? '' : String(currentPropertyId)
+    });
+    if (!result.ok && !storageWarned) {
+      storageWarned = true;
+      showCustomAlert(result.reason === 'full'
+        ? 'Browser storage is full, so your latest change was not saved. Export a backup now, then delete old expenses or receipts.'
+        : 'This browser is blocking storage, so changes will be lost when you close the page. Export a backup before leaving.',
+        'Not saved');
+    }
+    return result.ok;
   }
 
   // Save data (this device only)
@@ -1065,6 +1082,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Add export/import buttons
     addExportImportButtons();
+    if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
 
   }
 

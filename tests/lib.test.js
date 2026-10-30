@@ -72,3 +72,40 @@ test('validateBackup accepts an export from the app unchanged', () => {
   assert.equal(r.skipped, 0);
   assert.deepEqual(r.data, exported);
 });
+
+const { readJson, writeAll } = require('../lib.js');
+
+function fakeStore(initial = {}, setError = null) {
+  const data = { ...initial };
+  return {
+    data,
+    getItem: k => (k in data ? data[k] : null),
+    setItem: (k, v) => { if (setError) throw setError; data[k] = v; }
+  };
+}
+
+test('readJson returns the fallback for missing, corrupt or null values', () => {
+  const s = fakeStore({ bad: '{not json', nul: 'null', ok: '[1,2]' });
+  assert.deepEqual(readJson(s, 'missing', []), []);
+  assert.deepEqual(readJson(s, 'bad', []), []);
+  assert.deepEqual(readJson(s, 'nul', []), []);
+  assert.deepEqual(readJson(s, 'ok', []), [1, 2]);
+});
+
+test('readJson returns the fallback when storage itself throws', () => {
+  const s = { getItem() { throw new Error('SecurityError'); } };
+  assert.equal(readJson(s, 'x', 'fb'), 'fb');
+});
+
+test('writeAll stores strings as-is and other values as JSON', () => {
+  const s = fakeStore();
+  assert.deepEqual(writeAll(s, { a: 'p1', b: [1] }), { ok: true });
+  assert.equal(s.data.a, 'p1');
+  assert.equal(s.data.b, '[1]');
+});
+
+test('writeAll reports full storage instead of throwing', () => {
+  const err = Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
+  assert.deepEqual(writeAll(fakeStore({}, err), { a: 1 }), { ok: false, reason: 'full' });
+  assert.deepEqual(writeAll(fakeStore({}, new Error('blocked')), { a: 1 }), { ok: false, reason: 'unavailable' });
+});

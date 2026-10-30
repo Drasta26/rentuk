@@ -69,7 +69,32 @@
     return { ok: true, data, skipped };
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
+  // Read JSON from storage; a missing, blocked or corrupt value gives the fallback.
+  function readJson(storage, key, fallback) {
+    try {
+      const raw = storage.getItem(key);
+      if (raw === null) return fallback;
+      const v = JSON.parse(raw);
+      return v === null || v === undefined ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  // Write several keys; returns { ok, reason } instead of throwing when storage is full or blocked.
+  function writeAll(storage, entries) {
+    try {
+      for (const [key, value] of Object.entries(entries)) {
+        storage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+      }
+      return { ok: true };
+    } catch (e) {
+      const full = e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+      return { ok: false, reason: full ? 'full' : 'unavailable' };
+    }
+  }
+
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = RentUKLib;
   else root.RentUKLib = RentUKLib;

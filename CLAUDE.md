@@ -24,8 +24,14 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - A landlord using the app to record tenant names and contacts is still a controller under UK GDPR for their own records; the app keeps that data on their device only.
 - Unverified: whether any ICO fee applies to individual landlords — for the landlord to check, not the app.
 
+## Done since import (see git log)
+- User text escaped before rendering (`escapeHtml` in `lib.js`).
+- Backup files validated on import (schema, size, safe IDs).
+- Storage failures handled: corrupt values fall back to defaults; full or blocked storage shows a warning instead of crashing (`readJson` / `writeAll` in `lib.js`).
+- Unit tests: `npm test` (Node 20+, no packages), 12 passing on 30 Oct 2026.
+
 ## Open gaps
-- User text is inserted with `innerHTML` without escaping. Low risk while data is the user's own, but a crafted backup file could inject script on import. Fix: escape on render.
-- No tests in the repo; no build tooling.
+- No browser (end-to-end) tests or CI yet.
+- `script.js` is one large file; splitting into modules is on the roadmap.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosting not chosen (any static host works; still no data leaves the device).

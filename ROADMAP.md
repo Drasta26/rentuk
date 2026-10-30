@@ -5,7 +5,7 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 ## 1. Security and robustness (4-6 h)
 - [x] Escape all user text before rendering (replace unescaped `innerHTML`).
 - [x] Validate backup files on import (schema and size checks) so a crafted file cannot inject script or corrupt data.
-- [ ] Handle full or unavailable `localStorage` gracefully.
+- [x] Handle full or unavailable `localStorage` gracefully.
 
 ## 2. Tests (6-8 h)
 - [x] Add a test runner and unit tests for the escaping and backup checks.
