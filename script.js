@@ -485,18 +485,30 @@ document.addEventListener('DOMContentLoaded', function() {
   function importData(event) {
     const file = event.target.files[0];
     if (!file) return;
+    if (file.size > window.RentUKLib.MAX_BACKUP_BYTES) {
+      showCustomAlert('Backup file is too large (over 5 MB).', 'RentUK says');
+      event.target.value = '';
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = function(e) {
       try {
-        const importedData = JSON.parse(e.target.result);
+        const result = window.RentUKLib.validateBackup(JSON.parse(e.target.result));
+        if (!result.ok) {
+          showCustomAlert(result.error, 'RentUK says');
+          return;
+        }
+        const importedData = result.data;
         expenses = importedData.expenses || expenses;
         properties = importedData.properties || properties;
         currentPropertyId = importedData.currentPropertyId || currentPropertyId;
         reminders = importedData.reminders || reminders;
         aobReminders = importedData.aobReminders || aobReminders;
         saveData();
-        showCustomAlert('Data imported successfully!', 'RentUK says');
+        showCustomAlert(result.skipped > 0
+          ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
+          : 'Data imported successfully!', 'RentUK says');
         loadPropertySelector();
         loadDashboard();
         loadExpenses();
