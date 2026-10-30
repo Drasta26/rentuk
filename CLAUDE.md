@@ -28,10 +28,15 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - User text escaped before rendering (`escapeHtml` in `lib.js`).
 - Backup files validated on import (schema, size, safe IDs).
 - Storage failures handled: corrupt values fall back to defaults; full or blocked storage shows a warning instead of crashing (`readJson` / `writeAll` in `lib.js`).
-- Unit tests: `npm test` (Node 20+, no packages), 12 passing on 30 Oct 2026.
+- Compliance Score (0-100) per property on the dashboard: 7 England checks (gas, EICR, EPC, deposit, alarms, Right to Rent, How to Rent), editable inline, each linked to GOV.UK. Logic in `lib.js` (`complianceScore`).
+- 60-second setup wizard: opens on first launch and from "+ Add Property"; ends by showing the score.
+- Share card: 1080x1080 PNG of the score only (no names, addresses or tenant details), via the device share sheet or a download.
+- Unit tests: `npm test` (Node 20+, no packages), 15 passing on 30 Oct 2026.
 
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.
 - `script.js` is one large file; splitting into modules is on the roadmap.
+- Compliance intervals (gas 12 months, EICR 5 years, EPC 10 years) and GOV.UK links are from general knowledge and are unverified: check each against GOV.UK, and any Renters' Rights Act changes, before release.
+- The old `showAddPropertyForm` dialog is no longer used by any button.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosting not chosen (any static host works; still no data leaves the device).

@@ -134,6 +134,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function initApp() {
     loadLocalData();
     loadMainUI();
+    if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
+    else if (properties.length === 0) showSetupWizard();
   }
 
   // Load main UI
@@ -272,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Setup property selector
     const addPropertyBtn = document.getElementById('add-property-btn');
     if (addPropertyBtn) {
-      addPropertyBtn.addEventListener('click', showAddPropertyForm);
+      addPropertyBtn.addEventListener('click', showSetupWizard);
     }
 
     // Setup tab navigation
@@ -960,14 +962,16 @@ document.addEventListener('DOMContentLoaded', function() {
       dashboardHTML += `
         <div style="text-align: center;">
           <p style="color: #94a3b8; margin-bottom: 16px;">No properties added yet</p>
-          <button class="btn" onclick="showAddPropertyForm()" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
-            + Add Your First Property
+          <button class="btn" onclick="showSetupWizard()" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+            ⚡ 60-second setup
           </button>
         </div>
       `;
     }
 
     dashboardHTML += `</div></div>`;
+
+    if (currentProperty) dashboardHTML += renderCompliance(currentProperty);
 
     // Financial summary (only if we have a current property)
     if (currentProperty) {
@@ -1079,11 +1083,270 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     container.innerHTML = dashboardHTML;
+    bindCompliance(container);
 
     // Add export/import buttons
     addExportImportButtons();
-    if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
 
+  }
+
+
+  // ---- Compliance Score ----
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const STATUS_ICON = { ok: '✅', soon: '⏳', expired: '❌', missing: '⚪' };
+
+  const ukDate = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+  function statusText(item) {
+    if (item.kind === 'yes') return item.status === 'ok' ? 'Done' : 'Not done yet';
+    if (item.status === 'missing') return 'Add the date of the last one';
+    if (item.status === 'expired') return `Expired ${esc(ukDate(item.expires))}`;
+    return `Renew by ${esc(ukDate(item.expires))} (${item.daysLeft === 1 ? '1 day' : item.daysLeft + ' days'})`;
+  }
+
+  function scoreRing(score, level, size) {
+    return `<div class="score-ring level-${level}" style="--p:${score}; --size:${size}px">
+      <span class="score-num" data-target="${score}">${score}</span></div>`;
+  }
+
+  function renderCompliance(property) {
+    const r = RentUKLib.complianceScore(property.compliance, todayIso());
+    const done = r.items.filter(i => i.status === 'ok').length;
+    const headline = r.level === 'great' ? 'Looking great — you’re on top of it.'
+      : r.level === 'fair' ? 'Nearly there. Fix the items below to reach 100.'
+      : 'A few important checks are missing. Start at the top.';
+    const rows = r.items.map(item => `
+      <div class="check-row status-${item.status}">
+        <span class="check-icon">${STATUS_ICON[item.status]}</span>
+        <div class="check-text">
+          <strong>${esc(item.label)}</strong>
+          <small>${statusText(item)} · ${esc(item.hint)} · <a href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">GOV.UK ↗</a></small>
+        </div>
+        ${item.kind === 'yes'
+          ? `<button class="check-toggle ${item.status === 'ok' ? 'on' : ''}" data-check="${esc(item.key)}" aria-pressed="${item.status === 'ok'}">${item.status === 'ok' ? 'Yes' : 'No'}</button>`
+          : `<input type="date" class="check-date" data-check="${esc(item.key)}" value="${esc((property.compliance || {})[item.key] || '')}" aria-label="Date of last ${esc(item.label)}">`}
+      </div>`).join('');
+    return `
+      <div class="dashboard-section">
+        <h2>🛡️ Compliance Score</h2>
+        <div class="card score-card">
+          <div class="score-head">
+            ${scoreRing(r.score, r.level, 120)}
+            <div>
+              <p class="score-headline">${headline}</p>
+              <p class="score-sub">${done} of ${r.items.length} checks complete</p>
+              <button class="btn share-btn" id="share-score-btn">📣 Share my score</button>
+            </div>
+          </div>
+          <div class="check-list">${rows}</div>
+          <p class="score-note">England rules, simplified. Informational only, not legal advice. Check GOV.UK for your situation.</p>
+        </div>
+      </div>`;
+  }
+
+  function animateScores(root) {
+    root.querySelectorAll('.score-num[data-target]').forEach(el => {
+      const target = Number(el.dataset.target);
+      const ring = el.parentElement;
+      const start = performance.now();
+      const step = now => {
+        const t = Math.min(1, (now - start) / 900);
+        const v = Math.round(target * (1 - Math.pow(1 - t, 3)));
+        el.textContent = v;
+        ring.style.setProperty('--p', v);
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+  }
+
+  function updateCompliance(key, value) {
+    const property = getCurrentProperty();
+    if (!property) return;
+    property.compliance = { ...(property.compliance || {}) };
+    if (value === '' || value === false) delete property.compliance[key];
+    else property.compliance[key] = value;
+    saveData();
+    loadDashboard();
+  }
+
+  function bindCompliance(root) {
+    root.querySelectorAll('.check-toggle').forEach(btn =>
+      btn.addEventListener('click', () => updateCompliance(btn.dataset.check, !btn.classList.contains('on'))));
+    root.querySelectorAll('.check-date').forEach(input =>
+      input.addEventListener('change', () => updateCompliance(input.dataset.check, input.value)));
+    const share = root.querySelector('#share-score-btn');
+    if (share) share.addEventListener('click', shareScore);
+    animateScores(root);
+  }
+
+  // ---- 60-second setup ----
+  function showSetupWizard() {
+    if (document.getElementById('setup-wizard')) return;
+    const answers = { name: '', rent: '', compliance: {} };
+    const overlay = document.createElement('div');
+    overlay.id = 'setup-wizard';
+    overlay.className = 'wizard-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    document.body.appendChild(overlay);
+    const dates = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'date');
+    const yeses = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'yes');
+    let step = 0;
+
+    function frame(body, nextLabel) {
+      overlay.innerHTML = `
+        <div class="wizard">
+          <div class="wizard-progress"><span style="width:${(step + 1) * 25}%"></span></div>
+          <button class="wizard-close" aria-label="Close setup">×</button>
+          ${body}
+          <div class="wizard-actions">
+            ${step > 0 && step < 3 ? '<button class="wizard-back">Back</button>' : '<span></span>'}
+            <button class="btn wizard-next">${nextLabel}</button>
+          </div>
+        </div>`;
+      overlay.querySelector('.wizard-close').onclick = () => overlay.remove();
+      const back = overlay.querySelector('.wizard-back');
+      if (back) back.onclick = () => { step--; render(); };
+      overlay.querySelector('.wizard-next').onclick = next;
+      const first = overlay.querySelector('input, .yn');
+      if (first) first.focus();
+    }
+
+    function render() {
+      if (step === 0) {
+        frame(`
+          <p class="wizard-kicker">Step 1 of 3 · about 60 seconds</p>
+          <h3>What do you call this property?</h3>
+          <input id="wz-name" type="text" maxlength="60" placeholder="e.g. Flat 2, Oak Street house" value="${esc(answers.name)}">
+          <label class="wizard-label" for="wz-rent">Monthly rent (optional)</label>
+          <input id="wz-rent" type="number" min="0" step="1" placeholder="£" value="${esc(answers.rent)}">
+          <p class="wizard-hint">🔒 Stays on this device. No account, no sign-up.</p>`, 'Next →');
+      } else if (step === 1) {
+        frame(`
+          <p class="wizard-kicker">Step 2 of 3</p>
+          <h3>When were these last done?</h3>
+          <p class="wizard-hint">Not sure? Leave it blank and add it later.</p>
+          ${dates.map(i => `
+            <label class="wizard-label" for="wz-${i.key}">${esc(i.label)} <small>${esc(i.hint)}</small></label>
+            <input id="wz-${i.key}" type="date" max="${todayIso()}" value="${esc(answers.compliance[i.key] || '')}">`).join('')}`, 'Next →');
+      } else if (step === 2) {
+        frame(`
+          <p class="wizard-kicker">Step 3 of 3</p>
+          <h3>Quick yes or no</h3>
+          ${yeses.map(i => `
+            <div class="yn-row">
+              <span>${esc(i.label)}<small>${esc(i.hint)}</small></span>
+              <button class="yn ${answers.compliance[i.key] ? 'on' : ''}" data-key="${esc(i.key)}" aria-pressed="${!!answers.compliance[i.key]}">${answers.compliance[i.key] ? 'Yes' : 'No'}</button>
+            </div>`).join('')}`, 'See my score →');
+        overlay.querySelectorAll('.yn').forEach(b => b.onclick = () => {
+          answers.compliance[b.dataset.key] = !answers.compliance[b.dataset.key];
+          render();
+        });
+      } else {
+        const r = RentUKLib.complianceScore(answers.compliance, todayIso());
+        const todo = r.items.filter(i => i.status !== 'ok').slice(0, 3);
+        frame(`
+          <p class="wizard-kicker">All set</p>
+          <h3>Your compliance score</h3>
+          <div class="wizard-score">${scoreRing(r.score, r.level, 150)}</div>
+          ${todo.length ? `<p class="wizard-hint">Next to fix:</p><ul class="wizard-todo">${todo.map(i => `<li>${STATUS_ICON[i.status]} ${esc(i.label)}</li>`).join('')}</ul>`
+            : '<p class="wizard-hint">🎉 Every check is complete. Nice work.</p>'}`, 'Go to my dashboard');
+        animateScores(overlay);
+      }
+    }
+
+    function next() {
+      if (step === 0) {
+        const name = overlay.querySelector('#wz-name').value.trim();
+        if (!name) { overlay.querySelector('#wz-name').classList.add('invalid'); overlay.querySelector('#wz-name').focus(); return; }
+        answers.name = name;
+        answers.rent = overlay.querySelector('#wz-rent').value;
+      } else if (step === 1) {
+        dates.forEach(i => {
+          const v = overlay.querySelector('#wz-' + i.key).value;
+          if (v) answers.compliance[i.key] = v; else delete answers.compliance[i.key];
+        });
+      } else if (step === 2) {
+        const rent = parseFloat(answers.rent);
+        const property = {
+          id: 'prop_' + Date.now(),
+          name: answers.name,
+          address: '',
+          tenant: null,
+          compliance: RentUKLib.cleanCompliance(answers.compliance),
+          createdAt: new Date().toISOString()
+        };
+        if (Number.isFinite(rent) && rent > 0) {
+          property.tenant = { name: '', contact: '', leaseStart: '', leaseEnd: '', rentAmount: String(rent) };
+        }
+        properties.push(property);
+        currentPropertyId = property.id;
+        saveData();
+      } else {
+        overlay.remove();
+        loadPropertySelector();
+        loadDashboard();
+        return;
+      }
+      step++;
+      render();
+    }
+
+    overlay.addEventListener('keydown', e => {
+      if (e.key === 'Escape') overlay.remove();
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT') next();
+    });
+    render();
+  }
+
+  // ---- Share card (no names, addresses or tenant details) ----
+  function drawShareCard(score, level, done, total) {
+    const c = document.createElement('canvas');
+    c.width = 1080; c.height = 1080;
+    const g = c.getContext('2d');
+    const bg = g.createLinearGradient(0, 0, 1080, 1080);
+    bg.addColorStop(0, '#0f172a'); bg.addColorStop(1, '#312e81');
+    g.fillStyle = bg; g.fillRect(0, 0, 1080, 1080);
+    const colour = level === 'great' ? '#10b981' : level === 'fair' ? '#f59e0b' : '#ef4444';
+    const font = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    g.textAlign = 'center';
+    g.fillStyle = '#c7d2fe'; g.font = `600 44px ${font}`;
+    g.fillText('MY RENTAL COMPLIANCE SCORE', 540, 160);
+    g.lineWidth = 44; g.lineCap = 'round';
+    g.strokeStyle = 'rgba(255,255,255,0.12)';
+    g.beginPath(); g.arc(540, 500, 230, 0, Math.PI * 2); g.stroke();
+    g.strokeStyle = colour;
+    g.beginPath(); g.arc(540, 500, 230, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * score / 100); g.stroke();
+    g.fillStyle = '#ffffff'; g.font = `800 200px ${font}`;
+    g.fillText(String(score), 540, 570);
+    g.fillStyle = colour; g.font = `700 56px ${font}`;
+    g.fillText(level === 'great' ? 'On top of it 💪' : level === 'fair' ? 'Getting there' : 'Work in progress', 540, 840);
+    g.fillStyle = '#cbd5e1'; g.font = `400 40px ${font}`;
+    g.fillText(`${done} of ${total} landlord checks complete`, 540, 905);
+    g.fillStyle = '#94a3b8'; g.font = `500 34px ${font}`;
+    g.fillText('RentUK · free, private, no sign-up · What’s your score?', 540, 1010);
+    return c;
+  }
+
+  async function shareScore() {
+    const property = getCurrentProperty();
+    if (!property) return;
+    const r = RentUKLib.complianceScore(property.compliance, todayIso());
+    const done = r.items.filter(i => i.status === 'ok').length;
+    const canvas = drawShareCard(r.score, r.level, done, r.items.length);
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const file = new File([blob], `rentuk-score-${r.score}.png`, { type: 'image/png' });
+    const text = `My rental compliance score is ${r.score}/100 on RentUK. What's yours?`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = file.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showCustomAlert('Your score card image has been saved. It shows only your score — no names or addresses.', 'Score card ready');
   }
 
   // Function to toggle reminder status from dashboard
@@ -1175,4 +1438,5 @@ document.addEventListener('DOMContentLoaded', function() {
   window.setCurrentProperty = setCurrentProperty;
   window.editTenant = editTenant;
   window.updateReminderDate = updateReminderDate;
+  window.showSetupWizard = showSetupWizard;
 });

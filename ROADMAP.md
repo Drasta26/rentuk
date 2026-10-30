@@ -22,6 +22,7 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 - [ ] Arrears view on the dashboard.
 
 ## 5. Compliance reminders (4-5 h)
+- [x] Compliance Score per property with a 60-second setup wizard and a private share card.
 - [ ] Per-property certificate records (gas safety, EICR, EPC, deposit protection) with expiry dates and reminders.
 - [ ] Link each item to official GOV.UK guidance; check every interval against it before release. Informational only, not legal advice.
 

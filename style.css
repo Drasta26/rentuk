@@ -541,3 +541,71 @@ h3 {
   min-width: 200px;
   color: var(--dark);
 }
+/* ---- Compliance Score ---- */
+.score-card { padding: 24px; }
+.score-head { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; margin-bottom: 20px; }
+.score-headline { font-size: 1.15rem; font-weight: 700; margin-bottom: 4px; }
+.score-sub { color: var(--gray); margin-bottom: 12px; }
+.score-ring {
+  --c: var(--danger);
+  width: var(--size); height: var(--size); border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(closest-side, var(--dark) 78%, transparent 79%),
+    conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,0.1) 0);
+}
+.score-ring.level-fair { --c: var(--warning); }
+.score-ring.level-great { --c: var(--success); }
+.score-num { font-size: calc(var(--size) * 0.34); font-weight: 800; }
+.share-btn { background: var(--gradient-accent); padding: 10px 18px; }
+.check-list { display: flex; flex-direction: column; gap: 8px; }
+.check-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border-radius: 12px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+}
+.check-row.status-expired { border-color: rgba(239,68,68,0.5); }
+.check-row.status-soon { border-color: rgba(245,158,11,0.5); }
+.check-icon { font-size: 1.2rem; }
+.check-text { flex: 1; min-width: 0; }
+.check-text small { display: block; color: var(--gray); margin-top: 2px; }
+.check-text a { color: var(--accent); }
+.check-date { width: auto; max-width: 160px; padding: 8px; border-radius: 8px; }
+.check-toggle, .yn {
+  min-width: 64px; padding: 8px 14px; border-radius: 999px; cursor: pointer; font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--light);
+}
+.check-toggle.on, .yn.on { background: var(--success); border-color: var(--success); }
+.score-note { color: var(--gray); font-size: 0.8rem; margin-top: 14px; }
+
+/* ---- 60-second setup ---- */
+.wizard-overlay {
+  position: fixed; inset: 0; z-index: 10000; padding: 16px;
+  background: rgba(2,6,23,0.8); display: grid; place-items: center;
+}
+.wizard {
+  position: relative; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto;
+  background: #111827; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+  padding: 28px 24px 20px; color: var(--light); box-shadow: var(--shadow-xl);
+}
+.wizard h3 { font-size: 1.4rem; margin: 4px 0 14px; }
+.wizard input { width: 100%; padding: 12px; border-radius: 10px; margin-bottom: 8px; font-size: 1rem; }
+.wizard input.invalid { outline: 2px solid var(--danger); }
+.wizard-progress { height: 4px; background: rgba(255,255,255,0.1); border-radius: 4px; margin-bottom: 16px; }
+.wizard-progress span { display: block; height: 100%; background: var(--gradient-primary); border-radius: 4px; transition: width 0.3s; }
+.wizard-kicker { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+.wizard-label { display: block; margin: 10px 0 6px; font-weight: 600; }
+.wizard-label small, .yn-row small { display: block; color: var(--gray); font-weight: 400; }
+.wizard-hint { color: var(--gray); font-size: 0.9rem; margin: 6px 0 10px; }
+.wizard-close { position: absolute; top: 10px; right: 14px; background: none; border: none; color: var(--gray); font-size: 1.6rem; cursor: pointer; }
+.yn-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.wizard-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+.wizard-back { background: none; border: none; color: var(--gray); cursor: pointer; font-size: 1rem; }
+.wizard-score { display: grid; place-items: center; margin: 10px 0; }
+.wizard-todo { list-style: none; padding: 0; }
+.wizard-todo li { padding: 4px 0; }
+.wizard .score-ring { background: radial-gradient(closest-side, #111827 78%, transparent 79%), conic-gradient(var(--c) calc(var(--p) * 1%), rgba(255,255,255,0.1) 0); }
+
+@media (max-width: 480px) {
+  .check-row { flex-wrap: wrap; }
+  .check-date { max-width: none; flex-basis: 100%; }
+}

@@ -25,6 +25,66 @@
   function date(v) { return typeof v === 'string' && DATE_RE.test(v) ? v : ''; }
   function idOrNull(v) { return isSafeId(v) ? v : null; }
 
+  // Compliance checklist (England, private rented sector). Informational only, not legal advice.
+  // kind 'date' = date of last certificate/check, valid for `months`; kind 'yes' = done or not.
+  const COMPLIANCE_ITEMS = [
+    { key: 'gas', label: 'Gas safety certificate', kind: 'date', months: 12,
+      hint: 'Check by a Gas Safe engineer every 12 months', url: 'https://www.gov.uk/renting-out-a-property/your-responsibilities' },
+    { key: 'eicr', label: 'Electrical safety (EICR)', kind: 'date', months: 60,
+      hint: 'Inspection at least every 5 years', url: 'https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-rented-sector-guidance-for-landlords-tenants-and-local-authorities' },
+    { key: 'epc', label: 'Energy certificate (EPC)', kind: 'date', months: 120,
+      hint: 'Valid for 10 years', url: 'https://www.gov.uk/buy-sell-your-home/energy-performance-certificates' },
+    { key: 'deposit', label: 'Deposit protected', kind: 'yes',
+      hint: 'In a government-backed scheme', url: 'https://www.gov.uk/tenancy-deposit-protection' },
+    { key: 'alarms', label: 'Smoke and CO alarms', kind: 'yes',
+      hint: 'Fitted and tested at the start of each tenancy', url: 'https://www.gov.uk/renting-out-a-property/your-responsibilities' },
+    { key: 'rightToRent', label: 'Right to Rent checked', kind: 'yes',
+      hint: 'Before the tenancy starts', url: 'https://www.gov.uk/check-tenant-right-to-rent-documents' },
+    { key: 'howToRent', label: 'How to Rent guide given', kind: 'yes',
+      hint: 'Latest version from GOV.UK', url: 'https://www.gov.uk/government/publications/how-to-rent' }
+  ];
+
+  function addMonths(isoDate, months) {
+    const [y, m, d] = isoDate.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1 + months, d));
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function daysBetween(fromIso, toIso) {
+    return Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 86400000);
+  }
+
+  // Score 0-100 for one property. Each item: ok = full marks, due within 30 days = half, else none.
+  function complianceScore(compliance, todayIso) {
+    const c = compliance || {};
+    let points = 0;
+    const items = COMPLIANCE_ITEMS.map(item => {
+      let status = 'missing', expires = '', daysLeft = null;
+      if (item.kind === 'yes') {
+        status = c[item.key] === true ? 'ok' : 'missing';
+      } else if (DATE_RE.test(c[item.key] || '')) {
+        expires = addMonths(c[item.key], item.months);
+        daysLeft = daysBetween(todayIso, expires);
+        status = daysLeft < 0 ? 'expired' : daysLeft <= 30 ? 'soon' : 'ok';
+      }
+      points += status === 'ok' ? 1 : status === 'soon' ? 0.5 : 0;
+      return { ...item, status, expires, daysLeft };
+    });
+    const score = Math.round((points / COMPLIANCE_ITEMS.length) * 100);
+    const level = score >= 90 ? 'great' : score >= 60 ? 'fair' : 'poor';
+    return { score, level, items };
+  }
+
+  function cleanCompliance(c) {
+    const out = {};
+    if (!c || typeof c !== 'object') return out;
+    for (const item of COMPLIANCE_ITEMS) {
+      if (item.kind === 'date') { const d = date(c[item.key]); if (d) out[item.key] = d; }
+      else if (c[item.key] === true) out[item.key] = true;
+    }
+    return out;
+  }
+
   function cleanTenant(t) {
     if (!t || typeof t !== 'object') return null;
     const rent = parseFloat(t.rentAmount);
@@ -51,7 +111,8 @@
       .reduce((n, k) => n + (Array.isArray(raw[k]) ? raw[k].length : 0), 0);
     if (props) data.properties = props.map(p => ({
       id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address),
-      tenant: cleanTenant(p.tenant), createdAt: text(p.createdAt)
+      tenant: cleanTenant(p.tenant), createdAt: text(p.createdAt),
+      ...(p.compliance ? { compliance: cleanCompliance(p.compliance) } : {})
     }));
     if (exps) data.expenses = exps
       .map(e => ({ id: e.id, date: date(e.date), description: text(e.description),
@@ -94,7 +155,8 @@
     }
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll,
+    COMPLIANCE_ITEMS, complianceScore, cleanCompliance, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = RentUKLib;
   else root.RentUKLib = RentUKLib;

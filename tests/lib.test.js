@@ -109,3 +109,33 @@ test('writeAll reports full storage instead of throwing', () => {
   assert.deepEqual(writeAll(fakeStore({}, err), { a: 1 }), { ok: false, reason: 'full' });
   assert.deepEqual(writeAll(fakeStore({}, new Error('blocked')), { a: 1 }), { ok: false, reason: 'unavailable' });
 });
+
+const { complianceScore, cleanCompliance } = require('../lib.js');
+
+test('complianceScore is 0 for an empty checklist and 100 when all current', () => {
+  assert.equal(complianceScore({}, '2026-10-30').score, 0);
+  const all = { gas: '2026-06-01', eicr: '2025-01-01', epc: '2020-01-01',
+    deposit: true, alarms: true, rightToRent: true, howToRent: true };
+  const r = complianceScore(all, '2026-10-30');
+  assert.equal(r.score, 100);
+  assert.equal(r.level, 'great');
+});
+
+test('complianceScore marks expired and due-soon certificates', () => {
+  const r = complianceScore({ gas: '2025-11-15', eicr: '2020-01-01' }, '2026-10-30');
+  const gas = r.items.find(i => i.key === 'gas');
+  const eicr = r.items.find(i => i.key === 'eicr');
+  assert.equal(gas.status, 'soon');
+  assert.equal(gas.expires, '2026-11-15');
+  assert.equal(gas.daysLeft, 16);
+  assert.equal(eicr.status, 'expired');
+  assert.equal(r.score, Math.round(0.5 / 7 * 100));
+});
+
+test('cleanCompliance keeps only known keys with valid values', () => {
+  assert.deepEqual(
+    cleanCompliance({ gas: '2026-01-01', epc: 'soon', deposit: 'yes', alarms: true, evil: '<x>' }),
+    { gas: '2026-01-01', alarms: true }
+  );
+  assert.deepEqual(cleanCompliance(null), {});
+});
