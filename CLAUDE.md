@@ -45,3 +45,13 @@ Double-click `index.html` (opens in the default browser). Data lives in that bro
 - The old `showAddPropertyForm` dialog is no longer used by any button.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosting not chosen (any static host works; still no data leaves the device).
+
+## Foundation (applies to all of Asta's apps; adopted 1 Nov 2026)
+Tagline: "Your app. Your data. Your choice."
+
+The 3 USPs, which are non-negotiable:
+1. **We never see your data.** Everything stays on the user's device. Users bring their own AI key. No accounts, no tracking, no tracking ads, nothing to breach.
+2. **You own everything.** Your app, your data, your key. Export, delete or take it anywhere. Open-source code anyone can check.
+3. **Fair by design.** Free core. Pay what you want or one-off upgrades. No subscription traps. Open costs page.
+
+Build rules: local-first storage; no analytics, trackers, ad networks or data-leaking third-party scripts; never log prompts or user content; always offer export and delete-all; never commit secrets (scan history before any push); made-up sample data only; MIT licence unless Asta says otherwise; truthful privacy claims ("we never see or store your data" if text goes to an AI provider). No adverts. A later support button uses "Support", not "Donate", with the copy "Built by one. Funded by many." UK English. If a request conflicts with this foundation, say so and suggest a compliant alternative.
