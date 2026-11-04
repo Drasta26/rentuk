@@ -40,7 +40,7 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start; /* top-aligned so the page does not jump as content loads */
   padding: 20px;
 }
 

@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         <div id="property-selector-container" style="padding: 0 24px 16px 24px; display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; color: #f8fafc;">Properties</h3>
+            <h2 style="margin: 0; padding: 0; border: none; font-size: 1.25rem; color: #f8fafc;">Properties</h2>
             <button class="btn" id="add-property-btn" style="background: linear-gradient(135deg, #047857, #065f46); padding: 8px 16px; font-size: 0.9rem;">
               + Add Property
             </button>
