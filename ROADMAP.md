@@ -37,6 +37,15 @@ Planned work, in priority order. Hours are rough estimates (about 35-50 hours in
 - [ ] Test with a real screen reader (VoiceOver on iPhone and Mac).
 - [x] Demo mode with made-up sample data.
 
+## 7a. Installable app (PWA)
+- [x] Web app manifest, icons (including maskable and Apple touch) and splash screen.
+- [x] Opens full screen (standalone).
+- [x] Service worker: works fully offline; data stays in localStorage.
+- [x] Install help: "Install app" button (Android/desktop) and iPhone "Add to Home Screen" hint; hidden once installed.
+- [x] "New version available, tap to update" message.
+- [x] Lighthouse 13.5 (mobile): performance 99, accessibility 100, best practices 100, SEO 100. No installability errors in Chrome.
+- [ ] Install and use offline on a real iPhone and Android phone (needs hosting first).
+
 ## 8. Release (3-4 h)
 - [ ] Host as a static site (for example GitHub Pages); no data leaves the device.
 - [ ] Tag v1.0 and write a short user guide.
