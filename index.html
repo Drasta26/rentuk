@@ -2,13 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RentUK • Property Management for UK Landlords</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RentUK">
     <meta name="description" content="RentUK — The simplest property management app for UK landlords. Track rent, reminders, and expenses in one place.">
 </head>
 <body>
     <a href="#main" class="skip-link">Skip to content</a>
+    <div id="splash" aria-hidden="true">
+        <img src="icons/icon-192.png" alt="" width="96" height="96">
+        <p>RentUK</p>
+    </div>
     <div id="app">
         <h1>RentUK</h1>
 
@@ -104,5 +116,6 @@
 
     <script src="lib.js"></script>
     <script src="script.js"></script>
+    <script src="pwa.js"></script>
 </body>
 </html>

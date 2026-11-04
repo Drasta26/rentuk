@@ -661,3 +661,24 @@ h3 {
   .nav-btn { min-height: 44px; }
   .tool-btn, .btn { min-height: 44px; }
 }
+
+/* ---- Installable app (PWA) ---- */
+body { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+#splash {
+  position: fixed; inset: 0; z-index: 20000; background: var(--dark);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  transition: opacity 0.3s ease;
+}
+#splash img { border-radius: 22px; }
+#splash p { font-size: 1.6rem; font-weight: 800; color: var(--light); }
+#splash.hide { opacity: 0; pointer-events: none; }
+.pwa-bar {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 9500; width: calc(100% - 32px); max-width: 460px;
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
+  background: #111827; border: 1px solid rgba(255,255,255,0.15); box-shadow: var(--shadow-xl); color: var(--light);
+}
+.pwa-bar p { flex: 1; margin: 0; font-size: 0.95rem; }
+.pwa-bar .btn { padding: 10px 16px; min-height: 44px; }
+.pwa-close { background: none; border: none; color: var(--light); font-size: 1.4rem; min-width: 44px; min-height: 44px; cursor: pointer; }
+@media (max-width: 480px) { body { padding-top: max(8px, env(safe-area-inset-top)); } }
