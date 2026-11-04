@@ -674,7 +674,7 @@ body { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(20p
 #splash.hide { opacity: 0; pointer-events: none; }
 .pwa-bar {
   position: fixed; left: 50%; transform: translateX(-50%); bottom: max(16px, env(safe-area-inset-bottom));
-  z-index: 9500; width: calc(100% - 32px); max-width: 460px;
+  z-index: 10500; width: calc(100% - 32px); max-width: 460px;
   display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
   background: #111827; border: 1px solid rgba(255,255,255,0.15); box-shadow: var(--shadow-xl); color: var(--light);
 }
