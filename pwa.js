@@ -40,6 +40,42 @@
   }
   window.RentUKPwa = { showBar };
 
+  // Install help. Hidden once installed, or after the user dismisses it on this device.
+  const DISMISS_KEY = 'rentukInstallHintDismissed';
+  const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const dismissed = () => { try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; } };
+  const rememberDismiss = () => { try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) { /* not essential */ } };
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function showInstallBar(text, actionLabel, onAction) {
+    if (isInstalled() || dismissed() || document.getElementById('pwa-update')) return;
+    showBar('pwa-install', text, actionLabel, onAction);
+    const close = document.querySelector('#pwa-install .pwa-close');
+    if (close) close.addEventListener('click', rememberDismiss);
+  }
+
+  // Android and desktop Chrome/Edge: offer the browser's own install prompt.
+  let installEvent = null;
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    installEvent = e;
+    showInstallBar('Install RentUK for one-tap, offline access.', 'Install app', bar => {
+      bar.remove();
+      installEvent.prompt();
+      installEvent.userChoice.finally(() => { installEvent = null; });
+    });
+  });
+  window.addEventListener('appinstalled', () => {
+    const bar = document.getElementById('pwa-install');
+    if (bar) bar.remove();
+  });
+
+  // iPhone and iPad have no install prompt, so show how to do it by hand.
+  if (isIos && !isInstalled()) {
+    setTimeout(() => showInstallBar('Install RentUK: tap Share, then Add to Home Screen.'), 3000);
+  }
+
   // Offline cache and "new version" message. Service workers need https or localhost,
   // so this is skipped when index.html is opened straight from a folder.
   if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
