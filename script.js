@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function welcomeScreen() {
     return `
-      <div class="welcome">
+      <div class="welcome glass">
         <img src="icons/icon-512.png" alt="" width="112" height="112" class="welcome-logo">
         <h2 class="welcome-h">Landlording, <span>sorted.</span></h2>
         <p class="welcome-sub">Your legal checks, rent, costs and key dates in one calm place. Set up in about a minute.</p>
@@ -280,13 +280,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const r = RentUKLib.complianceScore(p.compliance, todayIso());
       const done = r.items.filter(i => i.status === 'ok').length;
       const n = nextUp(p);
-      const est = RentUKLib.rentalEstimate([p], expenses, RentUKLib.taxYearStart(todayIso()));
-      const pending = allDates(p).filter(d => !d.completed && d.dueDate && daysFrom(d.dueDate) <= 30).length;
       const t = p.tenant;
       return `
         <div class="hello"><p>${greeting()}</p><h2>${esc(p.name)}</h2></div>
         <button class="hero level-${r.level}" data-tab="checks">
-          ${scoreRing(r.score, r.level, 96)}
+          ${scoreRing(r.score, r.level, 108)}
           <span class="hero-text"><small>Compliance score</small>
             <strong>${r.level === 'great' ? 'You’re on top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
             <span>${done} of ${r.items.length} legal checks done</span></span>
@@ -297,12 +295,18 @@ document.addEventListener('DOMContentLoaded', function() {
           <span class="next-text"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           ${n.go ? ICON.chevron : ''}
         </button>
-        <div class="tiles">
-          <button class="tile" data-tab="money"><span class="tile-ico" aria-hidden="true">💷</span><small>Profit this year</small><strong>${money(est.income - est.costs)}</strong></button>
-          <button class="tile" data-tab="dates"><span class="tile-ico" aria-hidden="true">📅</span><small>Next 30 days</small><strong>${pending ? pending + (pending === 1 ? ' date' : ' dates') : 'All clear'}</strong></button>
-          <button class="tile" data-action="tenant"><span class="tile-ico" aria-hidden="true">👤</span><small>Tenant</small><strong>${t ? esc(t.name) : 'Add tenant'}</strong></button>
-          <button class="tile" data-action="share"><span class="tile-ico" aria-hidden="true">📣</span><small>Your score</small><strong>Share it</strong></button>
-        </div>`;
+        ${t ? `
+        <button class="contact-card" data-action="contact">
+          <span class="avatar" aria-hidden="true">${esc((t.name || '?').trim().charAt(0).toUpperCase())}</span>
+          <span class="next-text"><small>Your tenant</small><strong>${esc(t.name)}</strong><span>Call, text or email in one tap</span></span>
+          <span class="contact-go" aria-hidden="true">📞</span>
+        </button>` : `
+        <button class="contact-card" data-action="tenant">
+          <span class="avatar" aria-hidden="true">👤</span>
+          <span class="next-text"><small>Your tenant</small><strong>Add your tenant</strong><span>Name, contact, lease and rent</span></span>
+          ${ICON.plus}
+        </button>`}
+        <p class="privacy-line">${ICON.lock}<span>Stored only on this device. We never see it.</span></p>`;
     },
 
     checks(p, h) {
@@ -321,9 +325,10 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="screen-head">
           ${scoreRing(r.score, r.level, 64)}
-          <div><h2>🛡️ Legal checks</h2><p>${done} of ${r.items.length} done · tap any check for help</p></div>
+          <div class="grow"><h2>🛡️ Legal checks</h2><p>${done} of ${r.items.length} done · tap a check for help</p></div>
+          <button class="icon-btn" data-action="share" aria-label="Share my score (no personal details)">📣</button>
         </div>
-        ${pager('checks', r.items, h, 150, 70, row)}
+        ${pager('checks', r.items, h, 240, 70, row)}
         <p class="fine">England rules, checked against GOV.UK and HSE on 30 Oct 2026. A guide, not legal advice.</p>`;
     },
 
@@ -347,16 +352,15 @@ document.addEventListener('DOMContentLoaded', function() {
             <p>Tax on that profit is about</p>
             <div class="bands"><span><strong>${money(est.taxAt.basic)}</strong>basic 20%</span><span><strong>${money(est.taxAt.higher)}</strong>higher 40%</span><span><strong>${money(est.taxAt.additional)}</strong>top 45%</span></div>
           </div>
-          <div class="note tone-${est.mtd.due ? 'warn' : 'ok'}">${est.mtd.due
+          ${FAB_COST}<div class="note tone-${est.mtd.due ? 'warn' : 'ok'}">${est.mtd.due
             ? `Making Tax Digital likely applies from ${esc(est.mtd.from)}. Rent is over ${money(est.mtd.over)}.`
             : 'Making Tax Digital is not triggered by your rent alone.'}</div>
           <button class="link-btn" data-action="tax-info">${ICON.info}How this is worked out</button>`;
       }
       if (moneyView === 'expenses') {
         const list = expenses.filter(e => e.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-        return `${seg}
-          <button class="btn btn-add" data-action="add-expense">${ICON.plus}Add a cost</button>
-          ${list.length ? pager('expenses', list, h, 150, 66, costRow) : '<p class="empty">No costs yet. Add repairs, insurance or fees and they count towards your tax estimate.</p>'}`;
+        return `${seg}${FAB_COST}
+          ${list.length ? pager('expenses', list, h, 310, 66, costRow) : '<p class="empty">No costs yet. Add repairs, insurance or fees and they count towards your tax estimate.</p>'}`;
       }
       const est = RentUKLib.rentalEstimate([p], expenses, start);
       const rent = p.tenant ? parseFloat(p.tenant.rentAmount) || 0 : 0;
@@ -368,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="stat"><small>Rent this year</small><strong>${money(est.income)}</strong></div>
           <div class="stat"><small>Costs</small><strong>${money(est.costs)}</strong></div>
         </div>
-        <button class="btn btn-add" data-action="add-expense">${ICON.plus}Add a cost</button>
+        ${FAB_COST}
         ${recentCosts(p, h)}`;
     },
 
@@ -389,11 +393,12 @@ document.addEventListener('DOMContentLoaded', function() {
           </button>
         </div>`;
       return `
-        <div class="screen-title"><h2>📅 Key dates</h2>
-          <button class="icon-btn icon-btn-hi" data-action="add-date" aria-label="Add a date">${ICON.plus}</button></div>
-        ${pager('dates', allDates(p), h, 190, 66, row)}
-        ${dateIdeas(h - 190 - allDates(p).length * 74)}
-        <button class="btn btn-ghost btn-foot" data-action="calendar">Add all to my phone’s calendar</button>`;
+        <div class="screen-head"><h2 class="screen-h grow">📅 Key dates</h2>
+          <button class="pill-btn" data-action="calendar">${ICON.dates}Add to calendar</button></div>
+        <button class="fab" data-action="add-date" aria-label="Add a date">${ICON.plus}</button>
+        ${pager('dates', allDates(p), h, 300, 66, row)}
+        ${dateIdeas(h - 300 - allDates(p).length * 74)}
+`;
     },
 
     more() {
@@ -402,16 +407,11 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <h2 class="screen-h">Everything else</h2>
         <div class="tiles tiles-more">
-          ${item('tenant', '👤', 'Tenant', 'Name, lease, rent')}
-          ${item('properties', '🏘️', 'Properties', 'Switch or add')}
           ${item('move-in', '📋', 'Move-in pack', 'Print-ready checklist')}
-          ${item('calendar', '📅', 'Calendar', 'All dates, 14-day alerts')}
-          ${item('share', '📣', 'Share score', 'No personal details')}
           ${item('data', '🔒', 'Your data', 'Backup, restore, delete')}
           ${item('feedback', '💬', 'Feedback', 'Tell us what to fix')}
           ${item('about', '✨', 'About', 'Why RentUK exists')}
-        </div>
-        <p class="privacy-line">${ICON.lock}<span>Everything stays on this device. We never see it.</span></p>`;
+        </div>`;
     }
   };
 
@@ -425,7 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fill spare space on Money with the latest costs, only as many as fit.
   function recentCosts(p, h) {
-    const fit = Math.floor((h - 440) / 66);
+    const fit = Math.floor((h - 540) / 66);
     const list = expenses.filter(e => e.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     if (fit < 1 || !list.length) return '';
     return `<div class="list-head"><span>Latest costs</span>${list.length > fit ? '<button class="link-btn" data-money="expenses">See all</button>' : ''}</div>
@@ -438,6 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <span class="amount">${money2(e.amount)}</span>
     </button>`;
 
+  const FAB_COST = `<button class="fab" data-action="add-expense" aria-label="Add a cost">${ICON.plus}</button>`;
   const CATEGORY = { maintenance: ['🔧', 'Maintenance'], repairs: ['🛠️', 'Repairs'], insurance: ['🛡️', 'Insurance'], utilities: ['⚡', 'Utilities'], other: ['✨', 'Other'] };
   const money2 = n => '£' + Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -461,6 +462,7 @@ document.addEventListener('DOMContentLoaded', function() {
       setup: showSetupWizard,
       properties: propertiesSheet,
       tenant: () => tenantSheet(p),
+      contact: () => contactSheet(p),
       share: shareScore,
       calendar: exportCalendar,
       'move-in': openMoveInPack,
@@ -583,6 +585,29 @@ document.addEventListener('DOMContentLoaded', function() {
           leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(s.querySelector('#t-rent').value) || 0 };
         saveData(); closeSheet(); render();
       };
+    });
+  }
+
+  // Pull a phone number and an email out of the one contact field.
+  function contactWays(text) {
+    const email = (String(text || '').match(/[^\s,;]+@[^\s,;]+\.[^\s,;]+/) || [])[0] || '';
+    const phone = (String(text || '').replace(email, '').match(/\+?\d[\d\s()-]{6,}\d/) || [])[0] || '';
+    return { email, phone: phone.replace(/[^\d+]/g, '') };
+  }
+
+  function contactSheet(p) {
+    const t = p && p.tenant;
+    if (!t) return tenantSheet(p);
+    const { email, phone } = contactWays(t.contact);
+    const way = (href, icon, label) => `<a class="way" href="${esc(href)}"><span aria-hidden="true">${icon}</span>${label}</a>`;
+    openSheet(esc(t.name), `
+      <p class="sheet-lead"><span>${esc(p.name)}${t.leaseEnd ? ` · lease ends ${esc(ukDate(t.leaseEnd))}` : ''}${t.rentAmount ? ` · ${money(t.rentAmount)} a month` : ''}</span></p>
+      ${phone || email ? `<div class="ways">
+        ${phone ? way('tel:' + phone, '📞', 'Call') + way('sms:' + phone, '💬', 'Text') : ''}
+        ${email ? way('mailto:' + email + '?subject=' + encodeURIComponent(p.name), '✉️', 'Email') : ''}
+      </div>` : '<p class="story">No phone number or email saved yet.</p>'}
+      <button class="btn btn-ghost" id="t-edit">Edit tenant details</button>`, s => {
+      s.querySelector('#t-edit').onclick = () => tenantSheet(p);
     });
   }
 

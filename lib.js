@@ -163,7 +163,7 @@
   function demoData(todayIso) {
     const ago = n => addDays(todayIso, -n);
     const tenant = (name, rent, startAgo) => ({
-      name, contact: name.split(' ')[0].toLowerCase() + '@example.com',
+      name, contact: '07700 900' + String(100 + name.length) + ', ' + name.split(' ')[0].toLowerCase() + '@example.com',
       leaseStart: ago(startAgo), leaseEnd: addDays(ago(startAgo), 365), rentAmount: String(rent)
     });
     const properties = [
