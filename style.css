@@ -682,3 +682,7 @@ body { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(20p
 .pwa-bar .btn { padding: 10px 16px; min-height: 44px; }
 .pwa-close { background: none; border: none; color: var(--light); font-size: 1.4rem; min-width: 44px; min-height: 44px; cursor: pointer; }
 @media (max-width: 480px) { body { padding-top: max(8px, env(safe-area-inset-top)); } }
+
+/* Delete-all confirmation */
+#delete-all-dialog label { display: block; margin-top: 12px; }
+#delete-all-dialog input { width: 100%; margin-top: 6px; }

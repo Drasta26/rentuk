@@ -32,6 +32,7 @@ Double-click `index.html` (opens in the default browser), or run `python3 -m htt
 - 60-second setup wizard: opens on first launch and from "+ Add Property"; ends by showing the score.
 - Share card: 1080x1080 PNG of the score only (no names, addresses or tenant details), via the device share sheet or a download.
 - Tax year estimate (all properties): projected rent from lease dates, expenses or the £1,000 property allowance (whichever is bigger), tax at 20/40/45%, and a Making Tax Digital flag (£50k from Apr 2026, £30k from Apr 2027, £20k from Apr 2028, income before expenses). Checked on GOV.UK 30 Oct 2026. Not modelled: mortgage interest credit, other income, joint ownership, personal allowance.
+- Delete all my data: dashboard button, typed DELETE confirmation; clears only the keys in `RentUKLib.DATA_KEYS` (other apps on the same github.io site are untouched), keeps the offline app cache.
 - Calendar export: certificate renewal dates and open reminders as an .ics file with a 14-day alert.
 - Tenant move-in pack: printable checklist (before move-in, move-in day, within 30 days), meters, keys, inventory and signatures; opens in a new window.
 - Demo mode: open `index.html?demo` (or the link on the setup screen). Loads 3 made-up properties (great, fair and poor scores) into memory only; real saved data is never read or changed. Banner links back to the normal app.
@@ -46,7 +47,6 @@ Double-click `index.html` (opens in the default browser), or run `python3 -m htt
 - The old `showAddPropertyForm` dialog is no longer used by any button.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosting not chosen (any static https host works, e.g. GitHub Pages; still no data leaves the device). Needed before anyone can install the app.
-- No "delete all my data" button yet (the foundation requires export and delete-all).
 
 ## Foundation (applies to all of Asta's apps; adopted 1 Nov 2026)
 Tagline: "Your app. Your data. Your choice."

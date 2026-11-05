@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // localStorage itself can throw (e.g. blocked in some private modes), so fall back to an in-memory store.
   const memoryStore = () => {
     const mem = {};
-    return { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
+    return { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
   };
   // Demo mode (?demo): made-up data in memory only, so the visitor's real data is never touched.
   const isDemo = new URLSearchParams(location.search).has('demo');
@@ -1574,10 +1574,46 @@ document.addEventListener('DOMContentLoaded', function() {
       <label class="btn" style="cursor: pointer;">⬆️ Import backup
         <input type="file" id="import-data-input" accept="application/json,.json" style="display: none;">
       </label>
+      <p style="margin: 16px 0 0 0;"><button class="btn btn-danger" id="delete-all-btn">🗑️ Delete all my data</button></p>
     `;
     box.querySelector('#export-data-btn').addEventListener('click', exportData);
+    box.querySelector('#delete-all-btn').addEventListener('click', confirmDeleteAll);
     box.querySelector('#import-data-input').addEventListener('change', importData);
     dashboardContent.appendChild(box);
+  }
+
+  // Delete everything RentUK keeps in this browser, after typed confirmation.
+  function confirmDeleteAll() {
+    if (document.getElementById('delete-all-dialog')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'delete-all-dialog';
+    overlay.className = 'wizard-overlay';
+    overlay.innerHTML = `
+      <div class="wizard">
+        <h3>Delete all my data?</h3>
+        <p>This removes every property, tenant, expense, reminder and compliance date from this device. It cannot be undone.</p>
+        <p>${isDemo ? 'You are in demo mode, so only the sample data will be cleared.' : 'Export a backup first if you might want it later.'}</p>
+        <label for="delete-confirm-input">Type <strong>DELETE</strong> to confirm</label>
+        <input id="delete-confirm-input" autocomplete="off" autocapitalize="characters" spellcheck="false">
+        <div class="wizard-actions">
+          <button class="wizard-back" id="delete-cancel">Cancel</button>
+          <button class="btn btn-danger" id="delete-go" disabled>Delete everything</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    makeDialog(overlay);
+    const input = overlay.querySelector('#delete-confirm-input');
+    const go = overlay.querySelector('#delete-go');
+    input.addEventListener('input', () => { go.disabled = input.value.trim().toUpperCase() !== 'DELETE'; });
+    overlay.querySelector('#delete-cancel').onclick = () => overlay.remove();
+    go.onclick = () => {
+      const result = RentUKLib.clearAll(store);
+      overlay.remove();
+      if (!result.ok) { showCustomAlert('This browser blocked the delete. Clear this site\'s data in your browser settings instead.', 'Not deleted'); return; }
+      // Reload so every screen starts empty; demo mode leaves to a clean, real start.
+      location.replace(location.pathname);
+    };
+    input.focus();
   }
 
   // Setup tab navigation

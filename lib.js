@@ -275,7 +275,20 @@
     }
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll,
+  // Every key RentUK keeps in this browser. Other apps on the same site keep their own keys, so only these are cleared.
+  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId', 'rentukInstallHintDismissed'];
+
+  // Remove all RentUK keys; returns { ok } instead of throwing when storage is blocked.
+  function clearAll(storage, keys = DATA_KEYS) {
+    try {
+      keys.forEach(k => storage.removeItem(k));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false };
+    }
+  }
+
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

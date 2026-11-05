@@ -201,3 +201,14 @@ test('demoData triggers the Making Tax Digital flag', () => {
   const d = demoData('2026-10-30');
   assert.equal(rentalEstimate(d.properties, d.expenses, 2026).mtd.due, true);
 });
+
+const { clearAll, DATA_KEYS } = require('../lib.js');
+
+test('clearAll removes only RentUK keys and reports blocked storage', () => {
+  const mem = { expenses: '[]', properties: '[]', otherApp: 'keep' };
+  const store = { removeItem: k => { delete mem[k]; } };
+  DATA_KEYS.forEach(k => { mem[k] = 'x'; });
+  assert.deepEqual(clearAll(store), { ok: true });
+  assert.deepEqual(mem, { otherApp: 'keep' });
+  assert.deepEqual(clearAll({ removeItem: () => { throw new Error('blocked'); } }), { ok: false });
+});
