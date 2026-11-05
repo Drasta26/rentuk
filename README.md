@@ -43,7 +43,7 @@ npm test
 ## Data and privacy
 - All data stays in your browser on your device. Nothing is sent to a server or third party. No accounts, analytics or trackers.
 - Use **Export** to save a backup file and **Import** to restore it or move to another browser.
-- **Delete all my data** (dashboard, type DELETE to confirm) removes everything RentUK keeps on this device. It cannot be undone.
+- **Delete all my data** (More → Your data, type DELETE to confirm) removes everything RentUK keeps on this device. It cannot be undone.
 - This repository contains no real personal data. Use made-up details when testing.
 
 ## Status

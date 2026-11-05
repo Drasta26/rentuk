@@ -32,13 +32,14 @@ Double-click `index.html` (opens in the default browser), or run `python3 -m htt
 - 60-second setup wizard: opens on first launch and from "+ Add Property"; ends by showing the score.
 - Share card: 1080x1080 PNG of the score only (no names, addresses or tenant details), via the device share sheet or a download.
 - Tax year estimate (all properties): projected rent from lease dates, expenses or the £1,000 property allowance (whichever is bigger), tax at 20/40/45%, and a Making Tax Digital flag (£50k from Apr 2026, £30k from Apr 2027, £20k from Apr 2028, income before expenses). Checked on GOV.UK 30 Oct 2026. Not modelled: mortgage interest credit, other income, joint ownership, personal allowance.
-- Delete all my data: dashboard button, typed DELETE confirmation; clears only the keys in `RentUKLib.DATA_KEYS` (other apps on the same github.io site are untouched), keeps the offline app cache.
+- Delete all my data: More → Your data, typed DELETE confirmation; clears only the keys in `RentUKLib.DATA_KEYS` (other apps on the same github.io site are untouched), keeps the offline app cache.
 - Calendar export: certificate renewal dates and open reminders as an .ics file with a 14-day alert.
 - Tenant move-in pack: printable checklist (before move-in, move-in day, within 30 days), meters, keys, inventory and signatures; opens in a new window.
 - Demo mode: open `index.html?demo` (or the link on the setup screen). Loads 3 made-up properties (great, fair and poor scores) into memory only; real saved data is never read or changed. Banner links back to the normal app.
 - Accessibility pass (30 Oct 2026): all visible text on all four tabs and the setup wizard measured at WCAG AA contrast (4.5:1, 3:1 for large text) in demo mode; every input and button has a label; popups are proper dialogs (focus moves in, Tab stays inside, Escape closes, focus returns); visible yellow keyboard focus ring; skip link; one `main` landmark (removed a duplicate `#app` ID); tab and property buttons announce which is selected; respects "reduce motion"; 44px touch targets on phones. Not tested with a real screen reader (VoiceOver/NVDA).
 - Installable app / PWA (4 Nov 2026): `manifest.webmanifest`, icons in `icons/` (redraw with `python3 scripts/make-icons.py`), splash screen, `sw.js` offline cache (bump `VERSION` on every release), `pwa.js` for install help and the update message. Service workers need https or localhost, so opening from a folder skips them. Tested in Chromium (Playwright): offline load including `?demo`, update message and reload, install button, iPhone hint (iPhone user agent only, not real Safari). Lighthouse 13.5 mobile: 99/100/100/100 (performance/accessibility/best practices/SEO). Lighthouse no longer has a PWA category; Chrome's installability check reports no errors.
-- Unit tests: `npm test` (Node 20+, no packages), 26 passing on 4 Nov 2026.
+- Redesign (5 Nov 2026): app-like shell with no page scrolling. Top bar (logo + property switcher), one screen at a time, bottom tab bar (Home, Checks, Money, Dates, More). Lists page with Back/Next (`pager()` sizes rows to the screen). All forms open as bottom sheets (`openSheet()`). Home: score hero, "Next up" (most urgent item), 4 tiles. Dates merges your reminders with certificate renewals and lease end; quick-add ideas when there is room. Money: Overview / Costs / Tax. Welcome screen for first launch (wizard no longer auto-opens). Warm dark palette, system fonts, emoji icons kept. Checked at 375x812 and 375x667 in demo mode: no screen overflows. Lighthouse not re-run (package no longer cached; reinstall needs CEO approval).
+- Unit tests: `npm test` (Node 20+, no packages), 27 passing on 5 Nov 2026.
 
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.
@@ -46,7 +47,7 @@ Double-click `index.html` (opens in the default browser), or run `python3 -m htt
 - Compliance rules were checked against GOV.UK and HSE on 30 Oct 2026. How to Rent (withdrawn 1 May 2026) is replaced by the Renters' Rights Act Information Sheet / written terms. Re-check before each release; rules change. Not checked: EPC minimum rating, Wales/Scotland/NI rules.
 - The old `showAddPropertyForm` dialog is no longer used by any button.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
-- Hosting not chosen (any static https host works, e.g. GitHub Pages; still no data leaves the device). Needed before anyone can install the app.
+- Hosted on GitHub Pages since 5 Nov 2026: https://drasta26.github.io/rentuk/ (serves `main`). Every push to `main` goes live.
 
 ## Foundation (applies to all of Asta's apps; adopted 1 Nov 2026)
 Tagline: "Your app. Your data. Your choice."
