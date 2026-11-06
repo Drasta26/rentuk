@@ -288,13 +288,6 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
         <div class="bento">
-          <button class="hero level-${r.level}" data-tab="checks">
-            ${scoreRing(r.score, r.level, 96)}
-            <span class="hero-text"><small>Compliance score</small>
-              <strong>${r.level === 'great' ? 'On top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
-              <span>${done} of ${r.items.length} legal checks done</span></span>
-            ${ICON.chevron}
-          </button>
           <button class="tile t-next tone-${n.tone}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
             <span class="next-dot"></span>
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
@@ -314,8 +307,15 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
               <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
           </button>
+          <button class="hero level-${r.level}" data-tab="checks">
+            ${scoreRing(r.score, r.level, 96)}
+            <span class="hero-text"><small>Compliance score</small>
+              <strong>${r.level === 'great' ? 'On top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
+              <span>${done} of ${r.items.length} legal checks done</span></span>
+            ${ICON.chevron}
+          </button>
         </div>
-        <p class="privacy-line">${ICON.lock}<span>Stored only on this device. We never see it.</span></p>`;
+        <p class="privacy-line tagline-line">${ICON.lock}<span>Your app. Your data. Your choice.</span></p>`;
     },
 
     checks(p, h) {
