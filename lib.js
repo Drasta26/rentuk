@@ -289,6 +289,15 @@
     }
   }
 
+  // Pull a phone number and an email out of the one contact field. The email must look like a plain address,
+  // so a pasted '?bcc=...' cannot add extra headers to the mailto link.
+  function contactWays(text) {
+    const value = String(text || '');
+    const email = (value.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}/) || [])[0] || '';
+    const phone = (value.replace(email, '').match(/\+?\d[\d\s()-]{6,}\d/) || [])[0] || '';
+    return { email, phone: phone.replace(/[^\d+]/g, '') };
+  }
+
   // True when another tab erased RentUK data, so this tab must reload instead of writing its stale copy back.
   const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId'];
   function erasedElsewhere(e, storage) {
@@ -296,7 +305,7 @@
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere,
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

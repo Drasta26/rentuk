@@ -230,3 +230,10 @@ test('control characters are stripped from imported text and escaped in calendar
   const ics = buildIcs([{ uid: 'a', date: '2027-01-01', title: 'A\rB' }], '2026-11-06T10:00:00Z');
   assert.ok(!/A\rB/.test(ics) && ics.includes('SUMMARY:A\\nB'));
 });
+
+test('contactWays finds a phone and a plain email, and ignores mail header tricks', () => {
+  const { contactWays } = require('../lib.js');
+  assert.deepEqual(contactWays('07700 900123, sam@example.com'), { email: 'sam@example.com', phone: '07700900123' });
+  assert.equal(contactWays('a@b.com?bcc=x@y.com&body=hi').email, 'a@b.com');
+  assert.deepEqual(contactWays(''), { email: '', phone: '' });
+});

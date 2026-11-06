@@ -588,12 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // Pull a phone number and an email out of the one contact field.
-  function contactWays(text) {
-    const email = (String(text || '').match(/[^\s,;]+@[^\s,;]+\.[^\s,;]+/) || [])[0] || '';
-    const phone = (String(text || '').replace(email, '').match(/\+?\d[\d\s()-]{6,}\d/) || [])[0] || '';
-    return { email, phone: phone.replace(/[^\d+]/g, '') };
-  }
+  const contactWays = RentUKLib.contactWays;
 
   function contactSheet(p) {
     const t = p && p.tenant;
