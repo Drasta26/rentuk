@@ -222,3 +222,11 @@ test('erasedElsewhere is true only when another tab removes saved data', () => {
   assert.ok(!erasedElsewhere({ storageArea: store, key: 'rentukInstallHintDismissed', newValue: null }, store));
   assert.ok(!erasedElsewhere({ storageArea: {}, key: null, newValue: null }, store));
 });
+
+test('control characters are stripped from imported text and escaped in calendar files', () => {
+  const { validateBackup, buildIcs } = require('../lib.js');
+  const r = validateBackup({ properties: [{ id: 'p1', name: 'Flat\rBEGIN:VALARM\nX' }] });
+  assert.ok(!/[\r\n]/.test(r.data.properties[0].name));
+  const ics = buildIcs([{ uid: 'a', date: '2027-01-01', title: 'A\rB' }], '2026-11-06T10:00:00Z');
+  assert.ok(!/A\rB/.test(ics) && ics.includes('SUMMARY:A\\nB'));
+});

@@ -21,7 +21,8 @@
   function isSafeId(id) {
     return (typeof id === 'number' && Number.isFinite(id)) || (typeof id === 'string' && ID_RE.test(id));
   }
-  function text(v) { return v === null || v === undefined ? '' : String(v).slice(0, MAX_TEXT); }
+  // Control characters (including line breaks) are dropped from text fields; they have no use in names or notes.
+  function text(v) { return v === null || v === undefined ? '' : String(v).replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, MAX_TEXT); }
   function date(v) { return typeof v === 'string' && DATE_RE.test(v) ? v : ''; }
   function idOrNull(v) { return isSafeId(v) ? v : null; }
 
@@ -134,7 +135,7 @@
 
   // ---- Calendar export (iCalendar, RFC 5545) ----
   function icsText(v) {
-    return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+    return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
   }
 
   function buildIcs(events, stampIso) {
