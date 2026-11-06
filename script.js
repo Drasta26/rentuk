@@ -1,7 +1,7 @@
 // Wait for DOM to be fully loaded before running app
 document.addEventListener('DOMContentLoaded', function() {
   const esc = window.RentUKLib.escapeHtml;
-  const { readJson, writeAll } = window.RentUKLib;
+  const { readJson, writeAll, asList } = window.RentUKLib;
   // localStorage itself can throw (e.g. blocked in some private modes), so fall back to an in-memory store.
   const memoryStore = () => {
     const mem = {};
@@ -16,10 +16,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (isDemo) writeAll(store, window.RentUKLib.demoData(new Date().toISOString().slice(0, 10)));
   let storageWarned = false;
   // Data storage: this browser's localStorage only. Nothing is sent to any server.
-  let expenses = readJson(store, 'expenses', []);
-  let properties = readJson(store, 'properties', []);
+  let expenses = asList(readJson(store, 'expenses', []), []);
+  let properties = asList(readJson(store, 'properties', []), []);
   let currentPropertyId = store.getItem('currentPropertyId') || null;
-  let reminders = readJson(store, 'reminders', null) || [
+  let reminders = asList(readJson(store, 'reminders', null), null) || [
     { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
     { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
     { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ];
 
   // AOB reminders (dynamic)
-  let aobReminders = readJson(store, 'aobReminders', []);
+  let aobReminders = asList(readJson(store, 'aobReminders', []), []);
 
   // Get current property
   function getCurrentProperty() {
@@ -790,10 +790,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Load local data
   function loadLocalData() {
-    expenses = readJson(store, 'expenses', []);
-    properties = readJson(store, 'properties', []);
+    expenses = asList(readJson(store, 'expenses', []), []);
+    properties = asList(readJson(store, 'properties', []), []);
     currentPropertyId = store.getItem('currentPropertyId') || (properties.length > 0 ? properties[0].id : null);
-    reminders = readJson(store, 'reminders', null) || [
+    reminders = asList(readJson(store, 'reminders', null), null) || [
       { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
       { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
       { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
       { id: 5, name: '📊 EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
       { id: 6, name: '🔒 Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
     ];
-    aobReminders = readJson(store, 'aobReminders', []);
+    aobReminders = asList(readJson(store, 'aobReminders', []), []);
   }
 
   // Save local data

@@ -237,3 +237,11 @@ test('contactWays finds a phone and a plain email, and ignores mail header trick
   assert.equal(contactWays('a@b.com?bcc=x@y.com&body=hi').email, 'a@b.com');
   assert.deepEqual(contactWays(''), { email: '', phone: '' });
 });
+
+test('asList keeps only objects and falls back for wrong types', () => {
+  const { asList, complianceScore } = require('../lib.js');
+  assert.deepEqual(asList([{ a: 1 }, null, 'x', 3], []), [{ a: 1 }]);
+  assert.deepEqual(asList({}, []), []);
+  assert.equal(asList('oops', null), null);
+  assert.doesNotThrow(() => complianceScore({ gas: ['2025-01-01'] }, '2026-11-06'));
+});

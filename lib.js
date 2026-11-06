@@ -64,7 +64,7 @@
       let status = 'missing', expires = '', daysLeft = null;
       if (item.kind === 'yes') {
         status = c[item.key] === true ? 'ok' : 'missing';
-      } else if (DATE_RE.test(c[item.key] || '')) {
+      } else if (typeof c[item.key] === 'string' && DATE_RE.test(c[item.key])) {
         expires = addMonths(c[item.key], item.months);
         daysLeft = daysBetween(todayIso, expires);
         status = daysLeft < 0 ? 'expired' : daysLeft <= 30 ? 'soon' : 'ok';
@@ -263,6 +263,11 @@
     }
   }
 
+  // Stored lists must be arrays of objects; anything else (wrong type, null entries) is dropped so the app still opens.
+  function asList(v, fallback) {
+    return Array.isArray(v) ? v.filter(x => x && typeof x === 'object') : fallback;
+  }
+
   // Write several keys; returns { ok, reason } instead of throwing when storage is full or blocked.
   function writeAll(storage, entries) {
     try {
@@ -305,7 +310,7 @@
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays,
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
