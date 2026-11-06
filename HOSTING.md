@@ -1,7 +1,7 @@
-# Hosting RentUK on GitHub Pages (draft, not yet done)
+# Hosting RentUK on GitHub Pages (live since 5 Nov 2026)
 
-Status, 5 Nov 2026: the repo `Drasta26/rentuk` is public; Pages is **not** switched on.
-Nothing here has been done. Each step that publishes needs the CEO's explicit yes.
+Status, 6 Nov 2026: the repo `Drasta26/rentuk` is public and Pages is switched on (branch `main`, root). Every push to `main` goes live, so each push needs the CEO's explicit yes.
+The steps below are kept as the record of how it was switched on, and for switching off or moving.
 
 ## Why GitHub Pages
 - Free, https by default (phones need https to install an app and run it offline).
