@@ -1330,6 +1330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     input.focus();
   }
 
+  // If another tab deletes all data, reload so this tab cannot write its old copy back.
+  window.addEventListener('storage', e => { if (RentUKLib.erasedElsewhere(e, store)) location.reload(); });
+
   // Initialize app
   initApp();
 

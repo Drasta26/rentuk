@@ -288,7 +288,14 @@
     }
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll,
+  // True when another tab erased RentUK data, so this tab must reload instead of writing its stale copy back.
+  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId'];
+  function erasedElsewhere(e, storage) {
+    if (!e || e.storageArea !== storage) return false;
+    return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
+  }
+
+  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

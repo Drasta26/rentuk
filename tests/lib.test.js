@@ -212,3 +212,13 @@ test('clearAll removes only RentUK keys and reports blocked storage', () => {
   assert.deepEqual(mem, { otherApp: 'keep' });
   assert.deepEqual(clearAll({ removeItem: () => { throw new Error('blocked'); } }), { ok: false });
 });
+
+test('erasedElsewhere is true only when another tab removes saved data', () => {
+  const { erasedElsewhere } = require('../lib.js');
+  const store = {};
+  assert.ok(erasedElsewhere({ storageArea: store, key: null, newValue: null }, store));
+  assert.ok(erasedElsewhere({ storageArea: store, key: 'properties', newValue: null }, store));
+  assert.ok(!erasedElsewhere({ storageArea: store, key: 'properties', newValue: '[]' }, store));
+  assert.ok(!erasedElsewhere({ storageArea: store, key: 'rentukInstallHintDismissed', newValue: null }, store));
+  assert.ok(!erasedElsewhere({ storageArea: {}, key: null, newValue: null }, store));
+});
