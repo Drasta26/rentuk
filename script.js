@@ -838,6 +838,24 @@ document.addEventListener('DOMContentLoaded', function() {
     linkElement.click();
   }
 
+  function applyImport(result) {
+    const importedData = result.data;
+        expenses = importedData.expenses || expenses;
+        properties = importedData.properties || properties;
+        currentPropertyId = importedData.currentPropertyId || currentPropertyId;
+        reminders = importedData.reminders || reminders;
+        aobReminders = importedData.aobReminders || aobReminders;
+        saveData();
+        showCustomAlert(result.skipped > 0
+          ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
+          : 'Data imported successfully!', 'RentUK says');
+        loadPropertySelector();
+        loadDashboard();
+        loadExpenses();
+        loadReminders();
+        loadTenants();
+  }
+
   // Import data functionality
   function importData(event) {
     const file = event.target.files[0];
@@ -856,21 +874,16 @@ document.addEventListener('DOMContentLoaded', function() {
           showCustomAlert(result.error, 'RentUK says');
           return;
         }
-        const importedData = result.data;
-        expenses = importedData.expenses || expenses;
-        properties = importedData.properties || properties;
-        currentPropertyId = importedData.currentPropertyId || currentPropertyId;
-        reminders = importedData.reminders || reminders;
-        aobReminders = importedData.aobReminders || aobReminders;
-        saveData();
-        showCustomAlert(result.skipped > 0
-          ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
-          : 'Data imported successfully!', 'RentUK says');
-        loadPropertySelector();
-        loadDashboard();
-        loadExpenses();
-        loadReminders();
-        loadTenants();
+        const d = result.data;
+        const count = (list, one, many) => list ? `${list.length} ${list.length === 1 ? one : many}` : null;
+        const incoming = [count(d.properties, 'property', 'properties'), count(d.expenses, 'cost', 'costs'),
+          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates')].filter(Boolean).join(', ');
+        openSheet('Replace your data?', `
+          <p class="story">This file holds ${esc(incoming)}. Restoring replaces what you have now (${properties.length} ${properties.length === 1 ? 'property' : 'properties'}, ${expenses.length} costs). Save a backup first if you may want it back.</p>
+          <div class="sheet-actions"><button class="btn btn-quiet" id="imp-no">Cancel</button><button class="btn" id="imp-yes">Replace my data</button></div>`, s => {
+          s.querySelector('#imp-no').onclick = closeSheet;
+          s.querySelector('#imp-yes').onclick = () => { closeSheet(); applyImport(result); };
+        });
       } catch (error) {
         showCustomAlert('Error importing data. Please check the file format.', 'RentUK says');
       }
