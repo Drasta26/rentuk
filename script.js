@@ -281,31 +281,40 @@ document.addEventListener('DOMContentLoaded', function() {
       const done = r.items.filter(i => i.status === 'ok').length;
       const n = nextUp(p);
       const t = p.tenant;
+      const est = RentUKLib.rentalEstimate([p], expenses, RentUKLib.taxYearStart(todayIso()));
+      const rent = t ? parseFloat(t.rentAmount) || 0 : 0;
+      const soon = allDates(p).filter(d => !d.completed && d.dueDate && daysFrom(d.dueDate) <= 30);
+      const first = soon[0];
       return `
-        <div class="hello"><p>${greeting()}</p><h2>${esc(p.name)}</h2></div>
-        <button class="hero level-${r.level}" data-tab="checks">
-          ${scoreRing(r.score, r.level, 108)}
-          <span class="hero-text"><small>Compliance score</small>
-            <strong>${r.level === 'great' ? 'You’re on top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
-            <span>${done} of ${r.items.length} legal checks done</span></span>
-          ${ICON.chevron}
-        </button>
-        <button class="next tone-${n.tone}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
-          <span class="next-dot"></span>
-          <span class="next-text"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
-          ${n.go ? ICON.chevron : ''}
-        </button>
-        ${t ? `
-        <button class="contact-card" data-action="contact">
-          <span class="avatar" aria-hidden="true">${esc((t.name || '?').trim().charAt(0).toUpperCase())}</span>
-          <span class="next-text"><small>Your tenant</small><strong>${esc(t.name)}</strong><span>Call, text or email in one tap</span></span>
-          <span class="contact-go" aria-hidden="true">📞</span>
-        </button>` : `
-        <button class="contact-card" data-action="tenant">
-          <span class="avatar" aria-hidden="true">👤</span>
-          <span class="next-text"><small>Your tenant</small><strong>Add your tenant</strong><span>Name, contact, lease and rent</span></span>
-          ${ICON.plus}
-        </button>`}
+        <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
+        <div class="bento">
+          <button class="hero level-${r.level}" data-tab="checks">
+            ${scoreRing(r.score, r.level, 96)}
+            <span class="hero-text"><small>Compliance score</small>
+              <strong>${r.level === 'great' ? 'On top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
+              <span>${done} of ${r.items.length} legal checks done</span></span>
+            ${ICON.chevron}
+          </button>
+          <button class="tile t-next tone-${n.tone}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
+            <span class="next-dot"></span>
+            <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
+          </button>
+          <button class="tile t-money" data-tab="money">
+            <span class="tile-emoji" aria-hidden="true">💷</span>
+            <span class="tile-body"><small>Profit this year</small><strong class="t-big">${money(est.income - est.costs)}</strong>
+              <span>${rent ? money(rent) + ' rent a month' : 'Add rent to see more'}</span></span>
+          </button>
+          <button class="tile t-tenant" data-action="${t ? 'contact' : 'tenant'}">
+            <span class="avatar" aria-hidden="true">${t ? esc((t.name || '?').trim().charAt(0).toUpperCase()) : '👤'}</span>
+            <span class="tile-body"><small>Your tenant</small><strong>${t ? esc(t.name) : 'Add your tenant'}</strong>
+              <span class="ways-mini" aria-hidden="true">${t ? '<i>📞</i><i>💬</i><i>✉️</i>' : 'Name, contact, rent'}</span></span>
+          </button>
+          <button class="tile t-dates" data-tab="dates">
+            <span class="tile-emoji" aria-hidden="true">🗓️</span>
+            <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
+              <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
+          </button>
+        </div>
         <p class="privacy-line">${ICON.lock}<span>Stored only on this device. We never see it.</span></p>`;
     },
 
