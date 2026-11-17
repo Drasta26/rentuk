@@ -6,7 +6,7 @@ Simple property-management web app for UK landlords: dashboard, expenses, remind
 - `RentUK-replit-export-2026-10-30.zip` — original Replit export, SHA-256 f2ee2be7e15be9c7e67685dcbeba19234ba9a353b9ca4e3d51b3f2070a4f87b2. A copy is also in Downloads.
 - `v1-replit-2026-10-30/` — unchanged Replit version (Firebase + Google sign-in).
 - `v2-claude-2026-10-30/` — **current**. Local-only.
-- Replit project `@bewithbreath/RentUK` left untouched (Private, unpublished, dev database empty).
+- The earlier Replit project was left untouched (Private, unpublished, dev database empty).
 
 ## v2 changes (30 Oct 2026)
 - Removed Firebase SDK, `firebase-config.js`, Google sign-in, cloud sync and the login screen. The app opens straight to the dashboard.
