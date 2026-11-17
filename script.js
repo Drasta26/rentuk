@@ -333,7 +333,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
         <div class="bento">
-          <button class="tile t-next tone-${n.tone} ${n.tone === 'ok' ? 'tile-sky' : 'tile-deep'}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
+          <button class="tile t-next tone-${n.tone} tile-sky" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
             ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass', n.tone === 'ok' ? '' : 'ichip-warn')}
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           </button>
@@ -347,8 +347,8 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="tile-body"><small>Your tenant</small><strong>${t ? esc(t.name) : 'Add your tenant'}</strong>
               <span class="ways-mini" aria-hidden="true">${t ? `<i>${ICON.phone}</i><i>${ICON.chat}</i><i>${ICON.mail}</i>` : 'Name, contact, rent'}</span></span>
           </button>
-          <button class="tile t-dates ${soon.length ? 'tile-deep' : 'tile-sky'}" data-tab="checks">
-            ${chip('dates', 'glass')}
+          <button class="tile t-dates tile-sky" data-tab="checks">
+            ${chip('dates', 'glass', soon.length ? 'ichip-warn' : '')}
             <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
               <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
           </button>
@@ -434,20 +434,25 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     more() {
-      const item = (action, icon, tone, title, text) =>
-        `<button class="tile tile-wide tile-${tone}" data-action="${action}">${chip(icon, 'glass')}<span><strong>${title}</strong><small>${text}</small></span></button>`;
+      const item = (action, icon, title, text) =>
+        `<button class="tile tile-wide tile-sky" data-action="${action}">${chip(icon, 'glass')}<span><strong>${title}</strong><small>${text}</small></span></button>`;
+      const wide = (action, icon, kicker, title, text) =>
+        `<button class="hero more-wide" data-action="${action}" aria-label="${kicker}: ${text}">${chip(icon, 'glass')}<span class="hero-text"><small>${kicker}</small><strong>${title}</strong></span>${ICON.chevron}</button>`;
       return `
         <h2 class="screen-h">Everything else</h2>
-        <div class="tiles tiles-more">
-          ${item('move-in', 'clipboard', 'sky', 'Move-in pack', 'Print-ready checklist')}
-          ${item('data', 'lock', 'deep', 'Your data', 'Backup, restore, delete')}
-          ${item('feedback', 'chat', 'deep', 'Feedback', 'Tell us what to fix')}
-          ${item('about', 'sparkle', 'sky', 'About', 'Why RentUK exists')}
+        <div class="more-stack">
+          <div class="tiles tiles-more">
+            ${item('move-in', 'clipboard', 'Move-in pack', 'Print-ready checklist')}
+            ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
+            ${item('feedback', 'thumb', 'Feedback', 'Tell us what to fix')}
+            ${item('about', 'sparkle', 'About', 'Why RentUK exists')}
+          </div>
+          ${wide('ask', 'chat', 'Ask RentUK', 'Ask a landlord question', 'chat with Claude using your own key')}
+          ${wide('resources', 'info', 'Helpful resources', 'GOV.UK and HMRC', 'renting rules, tax and Making Tax Digital')}
         </div>`;
     }
   };
 
-  // One-tap ideas for common landlord dates, shown only when there is room.
   // Fill spare space on Money with the latest costs, only as many as fit.
   function recentCosts(p, h) {
     const fit = Math.floor((h - 540) / 66);
@@ -494,6 +499,8 @@ document.addEventListener('DOMContentLoaded', function() {
       data: dataSheet,
       feedback: feedbackSheet,
       about: aboutSheet,
+      resources: resourcesSheet,
+      ask: () => askSheet(p),
       'tax-info': taxInfoSheet,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
@@ -669,6 +676,160 @@ document.addEventListener('DOMContentLoaded', function() {
       <p class="fine">Nothing is sent anywhere. To tell us more, open an issue on the project’s GitHub page.</p>`, s => {
       s.querySelector('#f-up').onclick = () => showCustomAlert('Thank you. That means a lot.', 'Thanks');
       s.querySelector('#f-down').onclick = () => showCustomAlert('Sorry about that. Please tell us what went wrong on GitHub (github.com/Drasta26/rentuk/issues). Your data is never included.', 'Help us fix it');
+    });
+  }
+
+  // ---- Helpful resources: official pages only (each link checked on 17 Nov 2026) ----
+  const RESOURCES = [
+    ['Renting', [
+      ['house', 'Renting out your property', 'https://www.gov.uk/renting-out-a-property'],
+      ['house', 'Private renting', 'https://www.gov.uk/private-renting'],
+      ['clipboard', "Renters' Rights Act information sheet", 'https://www.gov.uk/government/publications/the-renters-rights-act-information-sheet-2026'],
+      ['lock', 'Tenancy deposit protection', 'https://www.gov.uk/tenancy-deposit-protection'],
+      ['user', 'Right to Rent document checks', 'https://www.gov.uk/check-tenant-right-to-rent-documents'],
+      ['checks', 'Gas safety for landlords (HSE)', 'https://www.hse.gov.uk/gas/domestic/faqlandlord.htm'],
+      ['bolt', 'Electrical safety standards', 'https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-and-social-rented-sectors-guidance'],
+      ['sparkle', 'Find an energy certificate (EPC)', 'https://www.gov.uk/find-energy-certificate']
+    ]],
+    ['Tax (HMRC)', [
+      ['pound', 'Paying tax on rental income', 'https://www.gov.uk/renting-out-a-property/paying-tax'],
+      ['pound', 'Work out your rental income', 'https://www.gov.uk/guidance/income-tax-when-you-rent-out-a-property-working-out-your-rental-income'],
+      ['dates', 'Making Tax Digital: do you need it, and when', 'https://www.gov.uk/guidance/find-out-if-and-when-you-need-to-use-making-tax-digital-for-income-tax'],
+      ['dates', 'Use Making Tax Digital for Income Tax', 'https://www.gov.uk/guidance/use-making-tax-digital-for-income-tax']
+    ]]
+  ];
+  function resourcesSheet() {
+    openSheet('Helpful resources', RESOURCES.map(([group, links]) => `
+      <div class="list-head"><span>${esc(group)}</span></div>
+      <div class="pick-list">${links.map(([icon, label, url]) => `
+        <a class="pick res-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${chip(icon, 'sky', 'ichip-sm')}<strong>${esc(label)}</strong>${ICON.chevron}</a>`).join('')}
+      </div>`).join('') + `<p class="fine">Official GOV.UK, HMRC and HSE pages. They open in your browser; RentUK sends nothing to them.</p>`);
+  }
+
+  // ---- Ask RentUK: chat with Claude using the user's own Anthropic API key ----
+  // The key lives only in this tab's memory and is forgotten when the tab closes (never saved to storage).
+  // Questions go straight from this device to Anthropic; RentUK has no server and never sees them.
+  const chat = { key: '', turns: [], withSummary: false, busy: false };
+  const CHAT_SYSTEM = `You are the assistant inside RentUK, a private app for landlords in England.
+Help with renting rules, landlord safety checks, deposits, tenancies, rental income and tax, and running a let property.
+Be accurate. If you are not sure, say so. For legal or tax questions give general information, name the relevant GOV.UK or HMRC page, and say it is not legal or tax advice when that matters.
+Rules differ in Wales, Scotland and Northern Ireland; say so if the question may depend on it.
+Use UK English. Keep answers short (under 200 words unless asked for more). Write plain text without Markdown: short paragraphs, or simple lists that start with a hyphen.`;
+
+  // Scores and totals only: no property names, addresses or tenant details.
+  function chatSummary(p) {
+    const r = RentUKLib.complianceScore(p.compliance, todayIso());
+    const est = RentUKLib.rentalEstimate([p], expenses, RentUKLib.taxYearStart(todayIso()));
+    const checks = r.items.map(i => `- ${i.label}: ${i.status}${i.expires ? ` (valid until ${i.expires})` : ''}`).join('\n');
+    return `Summary of the user's current property (shared by the user; no personal details):
+Today: ${todayIso()}. Compliance score ${r.score}/100.
+${checks}
+Monthly rent: ${p.tenant && p.tenant.rentAmount ? '£' + p.tenant.rentAmount : 'not set'}.
+Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.costs}.`;
+  }
+
+  function chatErrorText(status, body) {
+    if (status === 401) return 'That API key was not accepted. Check it and try again.';
+    if (status === 402 || /credit|billing/i.test(body)) return 'Your Anthropic account needs credit before Claude can answer.';
+    if (status === 429) return 'Too many questions at once. Wait a moment and try again.';
+    if (status >= 500) return 'Claude is busy or unavailable right now. Try again shortly.';
+    return 'Something went wrong (' + status + '). Try again.';
+  }
+
+  async function askClaude(p) {
+    const system = chat.withSummary ? CHAT_SYSTEM + '\n\n' + chatSummary(p) : CHAT_SYSTEM;
+    let res;
+    try {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': chat.key,
+          'anthropic-version': '2026-10-21',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'anthropic-beta': 'server-side-fallback-2026-07-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-5-5',
+          max_tokens: 16000,
+          output_config: { effort: 'low' },
+          fallbacks: 'default',
+          system,
+          messages: chat.turns.map(t => ({ role: t.role, content: t.content }))
+        })
+      });
+    } catch (e) {
+      return { error: 'Could not reach Claude. Check your internet connection.' };
+    }
+    const raw = await res.text();
+    if (!res.ok) return { error: chatErrorText(res.status, raw) };
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { return { error: 'Claude sent a reply RentUK could not read. Try again.' }; }
+    if (data.stop_reason === 'refusal') return { error: 'Claude declined to answer that one. Try asking it another way.' };
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    return { content: data.content, text: text + (data.stop_reason === 'max_tokens' ? '\n\n(Answer cut short.)' : '') };
+  }
+
+  function askSheet(p) {
+    if (!chat.key) {
+      openSheet('Ask RentUK', `
+        <p class="sheet-lead">${ICON.lock}<span>Answers come from Claude, made by Anthropic. Your questions go straight from this device to Anthropic using your own API key. RentUK never sees or stores them.</span></p>
+        <label class="field"><span>Your Anthropic API key</span><input id="k-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
+        <p class="fine">The key stays only in this tab and is forgotten when you close it. Each question uses credit on your Anthropic account. <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key</a></p>
+        <div class="sheet-actions"><button class="btn" id="k-go">Start</button></div>`, s => {
+        const go = () => {
+          const v = s.querySelector('#k-key').value.trim();
+          if (!v) return sheetError(s, 'Paste your API key first.');
+          chat.key = v; askSheet(p);
+        };
+        s.querySelector('#k-go').onclick = go;
+        s.querySelector('#k-key').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+      });
+      return;
+    }
+    openSheet('Ask RentUK', `
+      <div class="chat-log" id="c-log" aria-live="polite"></div>
+      <label class="chat-opt"><input type="checkbox" id="c-sum" ${chat.withSummary ? 'checked' : ''}> Share this property's scores and totals (no names or contact details)</label>
+      <div class="chat-input">
+        <textarea id="c-q" rows="2" maxlength="2000" placeholder="e.g. How often do I need an EICR?" aria-label="Your question"></textarea>
+        <button class="btn" id="c-send" aria-label="Send">${ICON.chevron}</button>
+      </div>
+      <div class="chat-foot"><span class="fine">Claude can make mistakes. Not legal or tax advice.</span><button class="link-btn" id="c-forget">Forget key</button></div>`, s => {
+      const log = s.querySelector('#c-log'), q = s.querySelector('#c-q'), send = s.querySelector('#c-send');
+      const bubble = (role, text) => {
+        const b = document.createElement('div');
+        b.className = 'bubble bubble-' + role;
+        b.textContent = text;
+        log.appendChild(b);
+        log.scrollTop = log.scrollHeight;
+        return b;
+      };
+      if (!chat.turns.length) bubble('assistant', 'Hello. Ask me anything about letting a property in England: safety checks, deposits, tenancies, rent or tax.');
+      chat.turns.forEach(t => bubble(t.role, t.text));
+      s.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
+      s.querySelector('#c-forget').onclick = () => { chat.key = ''; chat.turns = []; closeSheet(); showCustomAlert('Your key has been forgotten and this chat cleared.', 'Done'); };
+      const ask = async () => {
+        const text = q.value.trim();
+        if (!text || chat.busy) return;
+        chat.busy = true; send.disabled = true; q.value = '';
+        chat.turns.push({ role: 'user', content: text, text });
+        bubble('user', text);
+        const wait = bubble('assistant', 'Thinking…');
+        wait.classList.add('bubble-wait');
+        const out = await askClaude(p);
+        wait.remove();
+        if (out.error) {
+          chat.turns.pop();
+          bubble('error', out.error);
+        } else {
+          chat.turns.push({ role: 'assistant', content: out.content, text: out.text });
+          bubble('assistant', out.text);
+        }
+        chat.busy = false; send.disabled = false; q.focus();
+      };
+      send.onclick = ask;
+      q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } });
+      q.focus();
     });
   }
 
