@@ -793,7 +793,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   const COMING_SOON = `<div class="soon-row" aria-label="Coming soon">
-      <span class="soon-pill">${ICON.mic}Voice chat <em>coming soon</em></span>
+      <span class="soon-pill">${ICON.mic}Voice chat <em>Premium · coming soon</em></span>
       <span class="soon-pill">${ICON.video}Video chat <em>Premium · coming soon</em></span>
     </div>`;
 

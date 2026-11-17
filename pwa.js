@@ -48,28 +48,44 @@
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-  function showInstallBar(text, actionLabel, onAction) {
-    if (isInstalled() || dismissed() || document.getElementById('pwa-update')) return;
-    showBar('pwa-install', text, actionLabel, onAction);
+  // The bar reads "[Add] RentUK to your home screen." where "Add" is the button.
+  function showInstallBar(onAdd) {
+    if (isInstalled() || dismissed() || document.getElementById('pwa-update') || document.getElementById('pwa-install')) return;
+    const bar = document.createElement('div');
+    bar.id = 'pwa-install';
+    bar.className = 'pwa-bar';
+    bar.setAttribute('role', 'status');
     const icon = document.createElement('img');
     icon.src = 'icons/icon-192.png';
     icon.alt = '';
     icon.width = icon.height = 36;
     icon.className = 'pwa-bar-icon';
-    document.getElementById('pwa-install').prepend(icon);
-    const close = document.querySelector('#pwa-install .pwa-close');
-    if (close) close.addEventListener('click', rememberDismiss);
+    const p = document.createElement('p');
+    const add = document.createElement('button');
+    add.className = 'pwa-add';
+    add.type = 'button';
+    add.textContent = 'Add';
+    add.setAttribute('aria-label', 'Add RentUK to your home screen');
+    add.addEventListener('click', () => { bar.remove(); onAdd(); });
+    const words = document.createElement('span');
+    words.textContent = 'RentUK to your home screen';
+    p.className = 'pwa-add-line';
+    p.append(add, words);
+    const close = document.createElement('button');
+    close.className = 'pwa-close';
+    close.setAttribute('aria-label', 'Dismiss');
+    close.textContent = '×';
+    close.addEventListener('click', () => { bar.remove(); rememberDismiss(); });
+    bar.append(icon, p, close);
+    document.body.appendChild(bar);
   }
 
-  const INSTALL_TEXT = 'Add RentUK to your home screen.';
-
-  // Android and desktop Chrome/Edge: the Install button opens the browser's own install prompt.
+  // Android and desktop Chrome/Edge: "Add" opens the browser's own install prompt.
   let installEvent = null;
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     installEvent = e;
-    showInstallBar(INSTALL_TEXT, 'Install', bar => {
-      bar.remove();
+    showInstallBar(() => {
       installEvent.prompt();
       installEvent.userChoice.finally(() => { installEvent = null; });
     });
@@ -79,7 +95,7 @@
     if (bar) bar.remove();
   });
 
-  // iPhone and iPad do not let websites install themselves, so the Install button
+  // iPhone and iPad do not let websites install themselves, so "Add"
   // opens a short picture guide with an arrow pointing at Safari's toolbar.
   const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
   const ADD_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
@@ -116,7 +132,7 @@
   }
 
   if (isIos && !isInstalled()) {
-    setTimeout(() => showInstallBar(INSTALL_TEXT, 'Install', bar => { bar.remove(); showIosGuide(); }), 3000);
+    setTimeout(() => showInstallBar(showIosGuide), 3000);
   }
 
   // Offline cache and "new version" message. Service workers need https or localhost,
