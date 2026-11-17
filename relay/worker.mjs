@@ -4,8 +4,10 @@
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-opus-5-5';
-const MAX_BODY_BYTES = 64 * 1024;
-const MAX_TURNS = 30;
+const MAX_BODY_BYTES = 24 * 1024;
+const MAX_TURNS = 11; // the latest question plus up to five earlier questions and answers
+const MAX_ANSWER_CHARS = 8000; // each earlier answer sent back with the chat
+const MAX_OUTPUT_TOKENS = 1500;
 const MAX_QUESTION_CHARS = 2000;
 const MAX_SUMMARY_CHARS = 1500;
 
@@ -38,7 +40,9 @@ export function checkMessages(messages) {
     const want = i % 2 === 0 ? 'user' : 'assistant';
     if (m.role !== want) return false;
     if (m.role === 'user') return typeof m.content === 'string' && m.content.trim().length > 0 && m.content.length <= MAX_QUESTION_CHARS;
-    return Array.isArray(m.content);
+    return Array.isArray(m.content) && m.content.length <= 4 &&
+      m.content.every(b => b && (b.type === 'text' || b.type === 'thinking')) &&
+      JSON.stringify(m.content).length <= MAX_ANSWER_CHARS;
   }) && messages[messages.length - 1].role === 'user';
 }
 
@@ -75,7 +79,7 @@ export default {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 4000,
+        max_tokens: MAX_OUTPUT_TOKENS,
         output_config: { effort: 'low' },
         fallbacks: 'default',
         system: summary ? SYSTEM + '\n\n' + summary : SYSTEM,

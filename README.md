@@ -14,10 +14,10 @@ Individual UK landlords with one or a few properties who want a free, private to
 1. Clone or download this repository.
 2. Open `index.html` in any modern browser.
 
-That's it. There is no server and no account. Add `?demo` to the address (for example `index.html?demo`) to try it with made-up sample data.
+That's it. There is no account, and no server ever holds your data (the optional chat passes questions through a small relay; see Data and privacy). Add `?demo` to the address (for example `index.html?demo`) to try it with made-up sample data.
 
 ## Install on your phone or computer
-RentUK is an installable web app (PWA): once installed it opens full screen like a normal app and works with no internet connection. Installing needs the app to be served over `https://`; opening `index.html` straight from a folder works, but cannot be installed or used offline. A hosted address is not set up yet (see the roadmap).
+RentUK is an installable web app (PWA): once installed it opens full screen like a normal app and works with no internet connection. Installing needs the app to be served over `https://`; opening `index.html` straight from a folder works, but cannot be installed or used offline. The hosted app is at https://drasta26.github.io/rentuk/.
 
 - **iPhone or iPad (Safari):** open RentUK, tap **Share**, then **Add to Home Screen**.
 - **Android (Chrome):** open RentUK and tap **Install app** at the bottom of the screen, or use the menu (⋮) then **Install app**.
@@ -41,6 +41,7 @@ npm test
 ```
 
 ## Data and privacy
+Full notice: [PRIVACY.md](PRIVACY.md) (also in the app under More → About).
 - All data stays in your browser on your device. Nothing is sent to a server or third party. No accounts, analytics or trackers.
 - Optional Ask RentUK chat: if you use it, the questions you type (and, only if you tick the box, your property's scores and totals with no names or contact details) pass through our small chat relay to Anthropic, the maker of Claude. You need no account or key. The relay never logs or stores them, and we never see them. If you choose to use your own Anthropic key instead, questions go straight from your device to Anthropic, and the key is forgotten when you close the tab.
 - Use **Export** to save a backup file and **Import** to restore it or move to another browser.

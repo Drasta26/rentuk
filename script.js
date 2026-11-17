@@ -108,11 +108,11 @@ document.addEventListener('DOMContentLoaded', function() {
       <textarea id="feedback-text" placeholder="Please share your feedback..." 
                  style="width: 100%; height: 80px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px;"></textarea>
       <div style="display: flex; gap: 10px; justify-content: center;">
-        <button onclick="submitFeedback()" 
+        <button id="fb-submit" 
                 style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
           Submit
         </button>
-        <button onclick="document.getElementById('custom-alert').remove()" 
+        <button class="alert-cancel" 
                 style="background: #ef4444; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
           Cancel
         </button>
@@ -120,6 +120,8 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
 
     document.body.appendChild(alertDiv);
+    alertDiv.querySelector('#fb-submit').addEventListener('click', submitFeedback);
+    alertDiv.querySelector('.alert-cancel').addEventListener('click', () => alertDiv.remove());
     makeDialog(alertDiv);
   }
 
@@ -747,7 +749,10 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   async function askClaude(p) {
-    const messages = chat.turns.map(t => ({ role: t.role, content: t.content }));
+    // Send only the latest question and the five exchanges before it, which keeps each request small.
+    const recent = chat.turns.slice(-11);
+    while (recent.length && recent[0].role !== 'user') recent.shift();
+    const messages = recent.map(t => ({ role: t.role, content: t.content }));
     const system = chat.withSummary ? CHAT_SYSTEM + '\n\n' + chatSummary(p) : CHAT_SYSTEM;
     let res;
     try {
@@ -782,7 +787,9 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     try { data = JSON.parse(raw); } catch (e) { return { error: 'Claude sent a reply RentUK could not read. Try again.' }; }
     if (data.stop_reason === 'refusal') return { error: 'Claude declined to answer that one. Try asking it another way.' };
     const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-    return { content: data.content, text: text + (data.stop_reason === 'max_tokens' ? '\n\n(Answer cut short.)' : '') };
+    // Keep only the visible answer for later turns; earlier reasoning is not needed and keeps requests small.
+    const kept = (data.content || []).filter(b => b.type === 'text').map(b => ({ type: 'text', text: String(b.text).slice(0, 6000) }));
+    return { content: kept.length ? kept : [{ type: 'text', text: '(no answer)' }], text: text + (data.stop_reason === 'max_tokens' ? '\n\n(Answer cut short.)' : '') };
   }
 
   const COMING_SOON = `<div class="soon-row" aria-label="Coming soon">
@@ -842,7 +849,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions. <button class="link-btn" id="c-priv">Privacy</button></span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
@@ -856,6 +863,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     if (!chat.turns.length) bubble('assistant', 'Hello. I’m an AI assistant for landlords in England. What would you like to know?');
     chat.turns.forEach(t => bubble(t.role, t.text));
     body.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
+    body.querySelector('#c-priv').onclick = () => { close(); privacySheet(); };
     const forget = body.querySelector('#c-forget');
     if (forget) forget.onclick = () => { chat.key = ''; chat.turns = []; openChat(p); };
     const ask = async () => {
@@ -891,7 +899,21 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         <li><strong>You own everything.</strong> Back up, restore or delete it any time. Open-source code.</li>
         <li><strong>Fair by design.</strong> Free core. No subscription traps.</li>
       </ul>
-      <p class="tagline">Your app. Your data. Your choice.</p>`);
+      <p class="tagline">Your app. Your data. Your choice.</p>
+      <button class="link-btn" id="a-priv">Read our privacy notice</button>`, s => {
+      s.querySelector('#a-priv').onclick = privacySheet;
+    });
+  }
+
+  // Plain-English privacy notice (updated 17 Nov 2026). Keep in step with PRIVACY.md.
+  function privacySheet() {
+    openSheet('Privacy notice', `
+      <p class="story"><strong>Your property data stays on your device.</strong> Properties, tenants, checks, dates and costs are saved only in this browser. We never receive them. Backup files are saved wherever you choose. “Delete all my data” removes everything from this device.</p>
+      <p class="story"><strong>No tracking.</strong> No accounts, cookies, analytics, adverts or trackers. The browser’s own storage is used only to make the app work.</p>
+      <p class="story"><strong>If you use the chat.</strong> Your question, the earlier questions and answers in that chat and, only if you tick the box, this property’s scores and totals (no names or contact details) go through our small relay on Cloudflare to Anthropic, the maker of Claude, to get an answer. The relay does not log or store them. Cloudflare handles your internet (IP) address to deliver the message and limit misuse; we do not keep it. Anthropic handles your question under its own privacy policy and may keep it for a limited time. Please don’t type names, addresses or other personal details into the chat.</p>
+      <p class="story"><strong>If you email us.</strong> Your message reaches us through a forwarding service (addy.io), which hides our address. We use your email address and message only to reply, and delete them if you ask.</p>
+      <p class="story"><strong>Questions or requests.</strong> Use “Email us” under More → Feedback.</p>
+      <p class="fine">Last updated 17 November 2026.</p>`);
   }
 
   function taxInfoSheet() {
@@ -960,7 +982,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
                 style="background: #4f46e5; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
           Add Property
         </button>
-        <button onclick="document.getElementById('custom-alert').remove()" 
+        <button class="alert-cancel" 
                 style="background: #94a3b8; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
           Cancel
         </button>
@@ -968,6 +990,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     `;
 
     document.body.appendChild(alertDiv);
+    alertDiv.querySelector('.alert-cancel').addEventListener('click', () => alertDiv.remove());
     makeDialog(alertDiv);
 
     // Add event listener to the button after the element is created
@@ -1288,7 +1311,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         .print { background: #4f46e5; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
         @media print { .print { display: none; } body { margin: 0; } }
       </style></head><body>
-      <button class="print" onclick="window.print()">🖨️ Print or save as PDF</button>
+      <button class="print">🖨️ Print or save as PDF</button>
       <h1>Tenant move-in pack</h1>
       <p class="meta">${esc(p.name)}${p.address ? ' · ' + esc(p.address) : ''}<br>
         Tenant: ${esc(t.name || '____________________')} · Move-in date: ${esc(t.leaseStart ? ukDate(t.leaseStart) : '____________')}</p>
@@ -1336,6 +1359,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const w = window.open('', '_blank');
     if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
     w.document.open(); w.document.write(html); w.document.close();
+    const printBtn = w.document.querySelector('.print');
+    if (printBtn) printBtn.addEventListener('click', () => w.print());
   }
 
   // ---- Demo mode ----
