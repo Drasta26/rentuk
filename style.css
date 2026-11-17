@@ -593,7 +593,7 @@ body::before {
 .chat-input textarea { flex: 1; min-height: 50px; max-height: 120px; resize: none; padding: 12px 14px; border-radius: 16px; font: inherit; color: var(--text);
   background: rgba(255, 255, 255, 0.9); border: 1px solid var(--glass-line); }
 .chat-input .btn { min-height: 50px; width: 50px; padding: 0; border-radius: 16px; }
-.chat-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.chat-foot { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; text-align: center; }
 .chat-foot .link-btn { min-height: 36px; font-size: 0.85rem; }
 .sheet .fine a { color: var(--brand-text); font-weight: 600; }
 .more-wide .hero-text strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
