@@ -282,7 +282,7 @@
   }
 
   // Every key RentUK keeps in this browser. Other apps on the same site keep their own keys, so only these are cleared.
-  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId', 'rentukInstallHintDismissed'];
+  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
 
   // Remove all RentUK keys; returns { ok } instead of throwing when storage is blocked.
   function clearAll(storage, keys = DATA_KEYS) {
@@ -310,7 +310,16 @@
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
   }
 
-  const RentUKLib = { escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  // Backup reminder: due once there is something to lose, then monthly.
+  // Times are milliseconds; 0 means never. "Later" pauses it for a week.
+  const DAY_MS = 86400000;
+  function backupDue(now, hasData, lastBackup, snoozedAt) {
+    if (!hasData) return false;
+    if (snoozedAt && now - snoozedAt < 7 * DAY_MS) return false;
+    return !lastBackup || now - lastBackup >= 30 * DAY_MS;
+  }
+
+  const RentUKLib = { backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

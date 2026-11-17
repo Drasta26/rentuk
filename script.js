@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (isDemo) showDemoBanner();
     else if (params.has('setup') && !properties.length) showSetupWizard();
     else if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
+    else setTimeout(maybeRemindBackup, 1500);
   }
 
   // ---- App shell: one screen at a time, no scrolling. Bottom tabs, tiles, sheets and Next/Back pages. ----
@@ -661,7 +662,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function dataSheet() {
     openSheet('Your data', `
-      <p class="sheet-lead">${ICON.lock}<span>Everything is stored only in this browser on this device. We never see it. Clearing browser data deletes it, so keep a backup.</span></p>
+      <p class="sheet-lead">${ICON.lock}<span>Everything is stored only in this browser on this device. We never see it, so we can’t recover it. Deleting the app or clearing browser data deletes it too. Keep a backup somewhere safe, such as iCloud or Google Drive.</span></p>
+      ${isDemo ? '' : `<p class="fine">${metaGet(BACKUP_AT) ? 'Last backup: ' + new Date(metaGet(BACKUP_AT)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No backup saved yet.'}</p>`}
       <div class="stack">
         <button class="btn" id="g-export">${ICON.down}Save a backup file</button>
         <label class="btn btn-ghost">${ICON.up}Restore from a backup<input type="file" id="g-import" accept="application/json,.json" hidden></label>
@@ -1080,6 +1082,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   // Save data (this device only)
   function saveData() {
     saveLocalData();
+    setTimeout(maybeRemindBackup, 600);
   }
 
   // Export data functionality
@@ -1093,6 +1096,29 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
     linkElement.click();
+    rememberBackup();
+  }
+
+  // Gentle backup reminder. We never hold anyone's data, so a backup file is the only way back
+  // if the app or browser data is deleted. Shown after the first property, then monthly.
+  const BACKUP_AT = 'rentukLastBackup', BACKUP_SNOOZE = 'rentukBackupSnooze';
+  const metaGet = k => { try { return Number(localStorage.getItem(k)) || 0; } catch (e) { return 0; } };
+  const metaSet = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) { /* not essential */ } };
+  function rememberBackup() {
+    if (isDemo) return;
+    metaSet(BACKUP_AT, Date.now());
+    const bar = document.getElementById('backup-nudge');
+    if (bar) bar.remove();
+  }
+  function maybeRemindBackup() {
+    if (isDemo || !window.RentUKPwa || document.getElementById('backup-nudge') || document.getElementById('pwa-install')) return;
+    if (!window.RentUKLib.backupDue(Date.now(), properties.length > 0, metaGet(BACKUP_AT), metaGet(BACKUP_SNOOZE))) return;
+    const ever = metaGet(BACKUP_AT) > 0;
+    window.RentUKPwa.showBar('backup-nudge',
+      ever ? 'Time for a fresh backup. We can’t recover your data for you.' : 'Save a backup. We can’t recover your data for you.',
+      'Back up', bar => { bar.remove(); exportData(); });
+    const close = document.querySelector('#backup-nudge .pwa-close');
+    if (close) { close.setAttribute('aria-label', 'Remind me later'); close.addEventListener('click', () => metaSet(BACKUP_SNOOZE, Date.now())); }
   }
 
   function applyImport(result) {

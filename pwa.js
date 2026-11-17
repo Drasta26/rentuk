@@ -50,7 +50,7 @@
 
   // The bar reads "[Add] RentUK to your home screen." where "Add" is the button.
   function showInstallBar(onAdd) {
-    if (isInstalled() || dismissed() || document.getElementById('pwa-update') || document.getElementById('pwa-install')) return;
+    if (isInstalled() || dismissed() || document.getElementById('pwa-update') || document.getElementById('pwa-install') || document.getElementById('backup-nudge')) return;
     const bar = document.createElement('div');
     bar.id = 'pwa-install';
     bar.className = 'pwa-bar';

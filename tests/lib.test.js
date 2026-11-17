@@ -245,3 +245,23 @@ test('asList keeps only objects and falls back for wrong types', () => {
   assert.equal(asList('oops', null), null);
   assert.doesNotThrow(() => complianceScore({ gas: ['2025-01-01'] }, '2026-11-06'));
 });
+
+test('backupDue: nothing to lose means no reminder', () => {
+  const { backupDue } = require('../lib.js');
+  assert.equal(backupDue(Date.now(), false, 0, 0), false);
+});
+
+test('backupDue: never backed up is due, Later pauses it for a week', () => {
+  const { backupDue } = require('../lib.js');
+  const day = 86400000, now = 100 * day;
+  assert.equal(backupDue(now, true, 0, 0), true);
+  assert.equal(backupDue(now, true, 0, now - 6 * day), false);
+  assert.equal(backupDue(now, true, 0, now - 7 * day), true);
+});
+
+test('backupDue: monthly after the last backup', () => {
+  const { backupDue } = require('../lib.js');
+  const day = 86400000, now = 100 * day;
+  assert.equal(backupDue(now, true, now - 29 * day, 0), false);
+  assert.equal(backupDue(now, true, now - 30 * day, 0), true);
+});
