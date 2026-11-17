@@ -8,9 +8,14 @@ document.addEventListener('DOMContentLoaded', function() {
     return { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
   };
   // Demo mode (?demo): made-up data in memory only, so the visitor's real data is never touched.
-  const isDemo = new URLSearchParams(location.search).has('demo');
+  // A first visit (nothing saved yet) opens the same sample dashboard, so people see the app before typing anything.
+  // ?setup skips the preview and starts the real setup.
+  const params = new URLSearchParams(location.search);
   let store;
   try { store = window.localStorage; store.getItem('_'); } catch (e) { store = null; }
+  const hasRealData = !!store && asList(readJson(store, 'properties', []), []).length > 0;
+  const isPreview = !!store && !hasRealData && !params.has('demo') && !params.has('setup');
+  const isDemo = params.has('demo') || isPreview;
   const storageMissing = !store && !isDemo;
   if (!store || isDemo) store = memoryStore();
   if (isDemo) writeAll(store, window.RentUKLib.demoData(new Date().toISOString().slice(0, 10)));
@@ -20,12 +25,12 @@ document.addEventListener('DOMContentLoaded', function() {
   let properties = asList(readJson(store, 'properties', []), []);
   let currentPropertyId = store.getItem('currentPropertyId') || null;
   let reminders = asList(readJson(store, 'reminders', null), null) || [
-    { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
-    { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
-    { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
-    { id: 4, name: '🛡️ Insurance Renewal', dueDate: '', type: 'insurance', completed: false, propertyId: null },
-    { id: 5, name: '📊 EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
-    { id: 6, name: '🔒 Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
+    { id: 1, name: 'Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
+    { id: 2, name: 'Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
+    { id: 3, name: 'Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
+    { id: 4, name: 'Insurance Renewal', dueDate: '', type: 'insurance', completed: false, propertyId: null },
+    { id: 5, name: 'EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
+    { id: 6, name: 'Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
   ];
 
   // AOB reminders (dynamic)
@@ -132,6 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadLocalData();
     loadMainUI();
     if (isDemo) showDemoBanner();
+    else if (params.has('setup') && !properties.length) showSetupWizard();
     else if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
   }
 
@@ -149,8 +155,27 @@ document.addEventListener('DOMContentLoaded', function() {
     lock: svg('<rect x="5" y="11" width="14" height="9" rx="2.5"/><path d="M8 11V8a4 4 0 018 0v3"/>'),
     close: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
     tick: svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>'),
-    info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>')
+    info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>'),
+    alert: svg('<path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'),
+    pound: svg('<path d="M16 6.5A4 4 0 0 0 9 9v9"/><path d="M6.5 13h7"/><path d="M6 19h12"/>'),
+    phone: svg('<path d="M5 4h3l2 5-2.5 1.5a11 11 0 0 0 6 6L15 14l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/>'),
+    chat: svg('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8"/>'),
+    mail: svg('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>'),
+    clipboard: svg('<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3.5h6v3H9z"/><path d="M9 12h6M9 16h4"/>'),
+    sparkle: svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 16l.6 1.6 1.6.6-1.6.6-.6 1.7-.6-1.7-1.6-.6 1.6-.6z"/>'),
+    megaphone: svg('<path d="M4 10v4h3l8 4V6L7 10z"/><path d="M18 9.5a3.5 3.5 0 0 1 0 5"/>'),
+    user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>'),
+    wrench: svg('<path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3 6.7 20l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2 1-3z"/>'),
+    hammer: svg('<path d="M14 4l6 6-2 2-6-6z"/><path d="M13 9l-8 8 2 2 8-8"/>'),
+    bolt: svg('<path d="M13 3L5 14h6l-1 7 8-11h-6z"/>'),
+    house: svg('<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/>'),
+    trash: svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
+    down: svg('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'),
+    up: svg('<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>'),
+    thumb: svg('<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>')
   };
+  // A small rounded square holding one icon; tone is sky, maroon or indigo.
+  const chip = (name, tone = 'indigo', extra = '') => `<span class="ichip ichip-${tone} ${extra}" aria-hidden="true">${ICON[name]}</span>`;
   const TABS = [
     { id: 'home', label: 'Home' }, { id: 'checks', label: 'Checks' }, { id: 'money', label: 'Money' },
     { id: 'dates', label: 'Dates' }, { id: 'more', label: 'More' }
@@ -288,22 +313,22 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
         <div class="bento">
-          <button class="tile t-next tone-${n.tone}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
-            <span class="next-dot"></span>
+          <button class="tile t-next tone-${n.tone} ${n.tone === 'ok' ? 'tile-sky' : 'tile-maroon'}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
+            ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass')}
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           </button>
-          <button class="tile t-money" data-tab="money">
-            <span class="tile-emoji" aria-hidden="true">💷</span>
+          <button class="tile t-money tile-sky" data-tab="money">
+            ${chip('pound', 'glass')}
             <span class="tile-body"><small>Profit this year</small><strong class="t-big">${money(est.income - est.costs)}</strong>
               <span>${rent ? money(rent) + ' rent a month' : 'Add rent to see more'}</span></span>
           </button>
-          <button class="tile t-tenant" data-action="${t ? 'contact' : 'tenant'}">
-            <span class="avatar" aria-hidden="true">${t ? esc((t.name || '?').trim().charAt(0).toUpperCase()) : '👤'}</span>
+          <button class="tile t-tenant tile-sky" data-action="${t ? 'contact' : 'tenant'}">
+            <span class="avatar" aria-hidden="true">${t ? esc((t.name || '?').trim().charAt(0).toUpperCase()) : ICON.user}</span>
             <span class="tile-body"><small>Your tenant</small><strong>${t ? esc(t.name) : 'Add your tenant'}</strong>
-              <span class="ways-mini" aria-hidden="true">${t ? '<i>📞</i><i>💬</i><i>✉️</i>' : 'Name, contact, rent'}</span></span>
+              <span class="ways-mini" aria-hidden="true">${t ? `<i>${ICON.phone}</i><i>${ICON.chat}</i><i>${ICON.mail}</i>` : 'Name, contact, rent'}</span></span>
           </button>
-          <button class="tile t-dates" data-tab="dates">
-            <span class="tile-emoji" aria-hidden="true">🗓️</span>
+          <button class="tile t-dates ${soon.length ? 'tile-maroon' : 'tile-sky'}" data-tab="dates">
+            ${chip('dates', 'glass')}
             <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
               <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
           </button>
@@ -334,8 +359,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="screen-head">
           ${scoreRing(r.score, r.level, 64)}
-          <div class="grow"><h2>🛡️ Legal checks</h2><p>${done} of ${r.items.length} done · tap a check for help</p></div>
-          <button class="icon-btn" data-action="share" aria-label="Share my score (no personal details)">📣</button>
+          <div class="grow"><h2>Legal checks</h2><p>${done} of ${r.items.length} done · tap a check for help</p></div>
+          <button class="icon-btn" data-action="share" aria-label="Share my score (no personal details)">${ICON.megaphone}</button>
         </div>
         ${pager('checks', r.items, h, 240, 70, row)}
         <p class="fine">England rules, checked against GOV.UK and HSE on 30 Oct 2026. A guide, not legal advice.</p>`;
@@ -388,7 +413,7 @@ document.addEventListener('DOMContentLoaded', function() {
     dates(p, h) {
       const row = d => d.kind === 'auto' ? `
         <div class="row">
-          <span class="auto-badge" aria-hidden="true">${d.go === 'tenant' ? '👤' : '🛡️'}</span>
+          <span class="auto-badge">${chip(d.go === 'tenant' ? 'user' : 'checks', d.go === 'tenant' ? 'sky' : 'indigo', 'ichip-sm')}</span>
           <button class="row-text" ${d.go === 'tenant' ? 'data-action="tenant"' : 'data-tab="checks"'}>
             <strong>${esc(d.name)}</strong>
             <small class="tone-${toneFor(d.dueDate)}">${esc(ukDate(d.dueDate))} · ${whenText(d.dueDate)}</small>
@@ -402,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
           </button>
         </div>`;
       return `
-        <div class="screen-head"><h2 class="screen-h grow">📅 Key dates</h2>
+        <div class="screen-head"><h2 class="screen-h grow">Key dates</h2>
           <button class="pill-btn" data-action="calendar">${ICON.dates}Add to calendar</button></div>
         <button class="fab" data-action="add-date" aria-label="Add a date">${ICON.plus}</button>
         ${pager('dates', allDates(p), h, 300, 66, row)}
@@ -411,21 +436,21 @@ document.addEventListener('DOMContentLoaded', function() {
     },
 
     more() {
-      const item = (action, icon, title, text) =>
-        `<button class="tile tile-wide" data-action="${action}"><span class="tile-emoji" aria-hidden="true">${icon}</span><span><strong>${title}</strong><small>${text}</small></span></button>`;
+      const item = (action, icon, tone, title, text) =>
+        `<button class="tile tile-wide tile-${tone}" data-action="${action}">${chip(icon, 'glass')}<span><strong>${title}</strong><small>${text}</small></span></button>`;
       return `
         <h2 class="screen-h">Everything else</h2>
         <div class="tiles tiles-more">
-          ${item('move-in', '📋', 'Move-in pack', 'Print-ready checklist')}
-          ${item('data', '🔒', 'Your data', 'Backup, restore, delete')}
-          ${item('feedback', '💬', 'Feedback', 'Tell us what to fix')}
-          ${item('about', '✨', 'About', 'Why RentUK exists')}
+          ${item('move-in', 'clipboard', 'sky', 'Move-in pack', 'Print-ready checklist')}
+          ${item('data', 'lock', 'maroon', 'Your data', 'Backup, restore, delete')}
+          ${item('feedback', 'chat', 'maroon', 'Feedback', 'Tell us what to fix')}
+          ${item('about', 'sparkle', 'sky', 'About', 'Why RentUK exists')}
         </div>`;
     }
   };
 
   // One-tap ideas for common landlord dates, shown only when there is room.
-  const IDEAS = ['🔥 Boiler service', '🔍 Property inspection', '💷 Rent review', '📝 Lease renewal talk'];
+  const IDEAS = ['Boiler service', 'Property inspection', 'Rent review', 'Lease renewal talk'];
   function dateIdeas(spare) {
     if (spare < 120) return '';
     return `<div class="list-head"><span>Quick add</span></div>
@@ -442,13 +467,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   const costRow = e => `
     <button class="row" data-action="expense" data-id="${esc(e.id)}">
-      <span class="cat" aria-hidden="true">${CATEGORY[e.category] ? CATEGORY[e.category][0] : '✨'}</span>
+      ${chip(Object.hasOwn(CATEGORY, e.category) ? CATEGORY[e.category][0] : 'sparkle', 'sky', 'ichip-sm')}
       <span class="row-text"><strong>${esc(e.description)}</strong><small>${esc(ukDate(e.date))}</small></span>
       <span class="amount">${money2(e.amount)}</span>
     </button>`;
 
   const FAB_COST = `<button class="fab" data-action="add-expense" aria-label="Add a cost">${ICON.plus}</button>`;
-  const CATEGORY = { maintenance: ['🔧', 'Maintenance'], repairs: ['🛠️', 'Repairs'], insurance: ['🛡️', 'Insurance'], utilities: ['⚡', 'Utilities'], other: ['✨', 'Other'] };
+  const CATEGORY = { maintenance: ['wrench', 'Maintenance'], repairs: ['hammer', 'Repairs'], insurance: ['checks', 'Insurance'], utilities: ['bolt', 'Utilities'], other: ['sparkle', 'Other'] };
   const money2 = n => '£' + Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   function onAppClick(e) {
@@ -520,7 +545,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ${field('x-date', 'Date', 'date', existing ? existing.date : todayIso())}
       </div>
       <div class="chips" role="group" aria-label="Category">
-        ${Object.entries(CATEGORY).map(([k, [ic, label]]) => `<button class="chip ${k === cat ? 'on' : ''}" data-cat="${k}" aria-pressed="${k === cat}">${ic} ${label}</button>`).join('')}
+        ${Object.entries(CATEGORY).map(([k, [ic, label]]) => `<button class="chip ${k === cat ? 'on' : ''}" data-cat="${k}" aria-pressed="${k === cat}">${ICON[ic]}${label}</button>`).join('')}
       </div>
       <div class="sheet-actions">
         ${existing ? '<button class="btn btn-quiet" id="x-del">Delete</button>' : ''}
@@ -603,12 +628,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const t = p && p.tenant;
     if (!t) return tenantSheet(p);
     const { email, phone } = contactWays(t.contact);
-    const way = (href, icon, label) => `<a class="way" href="${esc(href)}"><span aria-hidden="true">${icon}</span>${label}</a>`;
+    const way = (href, icon, tone, label) => `<a class="way" href="${esc(href)}">${chip(icon, tone)}${label}</a>`;
     openSheet(esc(t.name), `
       <p class="sheet-lead"><span>${esc(p.name)}${t.leaseEnd ? ` · lease ends ${esc(ukDate(t.leaseEnd))}` : ''}${t.rentAmount ? ` · ${money(t.rentAmount)} a month` : ''}</span></p>
       ${phone || email ? `<div class="ways">
-        ${phone ? way('tel:' + phone, '📞', 'Call') + way('sms:' + phone, '💬', 'Text') : ''}
-        ${email ? way('mailto:' + email + '?subject=' + encodeURIComponent(p.name), '✉️', 'Email') : ''}
+        ${phone ? way('tel:' + phone, 'phone', 'sky', 'Call') + way('sms:' + phone, 'chat', 'indigo', 'Text') : ''}
+        ${email ? way('mailto:' + email + '?subject=' + encodeURIComponent(p.name), 'mail', 'maroon', 'Email') : ''}
       </div>` : '<p class="story">No phone number or email saved yet.</p>'}
       <button class="btn btn-ghost" id="t-edit">Edit tenant details</button>`, s => {
       s.querySelector('#t-edit').onclick = () => tenantSheet(p);
@@ -622,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
     openSheet('Your properties', `
       <div class="pick-list">${properties.map(p => `
         <button class="pick ${cur && p.id === cur.id ? 'on' : ''}" data-id="${esc(p.id)}" aria-pressed="${!!(cur && p.id === cur.id)}">
-          <span>🏠</span><strong>${esc(p.name)}</strong>${cur && p.id === cur.id ? ICON.tick : ''}</button>`).join('')}
+          ${chip('house', 'indigo', 'ichip-sm')}<strong>${esc(p.name)}</strong>${cur && p.id === cur.id ? ICON.tick : ''}</button>`).join('')}
       </div>
       <button class="btn btn-add" id="p-add">${ICON.plus}Add a property</button>`, s => {
       s.querySelectorAll('.pick').forEach(b => b.onclick = () => { closeSheet(); Object.keys(pageAt).forEach(k => delete pageAt[k]); setCurrentProperty(b.dataset.id); });
@@ -634,9 +659,9 @@ document.addEventListener('DOMContentLoaded', function() {
     openSheet('Your data', `
       <p class="sheet-lead">${ICON.lock}<span>Everything is stored only in this browser on this device. We never see it. Clearing browser data deletes it, so keep a backup.</span></p>
       <div class="stack">
-        <button class="btn" id="g-export">⬇️ Save a backup file</button>
-        <label class="btn btn-ghost">⬆️ Restore from a backup<input type="file" id="g-import" accept="application/json,.json" hidden></label>
-        <button class="btn btn-danger" id="delete-all-btn">🗑️ Delete all my data</button>
+        <button class="btn" id="g-export">${ICON.down}Save a backup file</button>
+        <label class="btn btn-ghost">${ICON.up}Restore from a backup<input type="file" id="g-import" accept="application/json,.json" hidden></label>
+        <button class="btn btn-danger" id="delete-all-btn">${ICON.trash}Delete all my data</button>
       </div>`, s => {
       s.querySelector('#g-export').onclick = exportData;
       s.querySelector('#g-import').onchange = ev => { closeSheet(); importData(ev); };
@@ -647,8 +672,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function feedbackSheet() {
     openSheet('How is RentUK for you?', `
       <div class="stack">
-        <button class="btn" id="f-up">👍 It’s helping</button>
-        <button class="btn btn-ghost" id="f-down">👎 Something’s not right</button>
+        <button class="btn" id="f-up">${ICON.thumb}It’s helping</button>
+        <button class="btn btn-ghost thumb-down" id="f-down">${ICON.thumb}Something’s not right</button>
       </div>
       <p class="fine">Nothing is sent anywhere. To tell us more, open an issue on the project’s GitHub page.</p>`, s => {
       s.querySelector('#f-up').onclick = () => showCustomAlert('Thank you. That means a lot.', 'Thanks');
@@ -803,12 +828,12 @@ document.addEventListener('DOMContentLoaded', function() {
     properties = asList(readJson(store, 'properties', []), []);
     currentPropertyId = store.getItem('currentPropertyId') || (properties.length > 0 ? properties[0].id : null);
     reminders = asList(readJson(store, 'reminders', null), null) || [
-      { id: 1, name: '🔥 Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
-      { id: 2, name: '🌡️ Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
-      { id: 3, name: '⚡ Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
-      { id: 4, name: '🛡️ Insurance Renewal', dueDate: '', type: 'insurance', completed: false, propertyId: null },
-      { id: 5, name: '📊 EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
-      { id: 6, name: '🔒 Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
+      { id: 1, name: 'Gas Safety Check', dueDate: '', type: 'gas', completed: false, propertyId: null },
+      { id: 2, name: 'Boiler Service', dueDate: '', type: 'maintenance', completed: false, propertyId: null },
+      { id: 3, name: 'Electrical Safety Check', dueDate: '', type: 'electrical', completed: false, propertyId: null },
+      { id: 4, name: 'Insurance Renewal', dueDate: '', type: 'insurance', completed: false, propertyId: null },
+      { id: 5, name: 'EPC Renewal', dueDate: '', type: 'epc', completed: false, propertyId: null },
+      { id: 6, name: 'Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
     ];
     aobReminders = asList(readJson(store, 'aobReminders', []), []);
   }
@@ -1116,8 +1141,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function showDemoBanner() {
     const bar = document.createElement('div');
     bar.className = 'demo-banner';
-    bar.innerHTML = `<span>Demo · nothing is saved</span>
-      <a href="${esc(location.pathname)}" class="demo-exit">Use my own →</a>`;
+    const exit = location.pathname + (hasRealData ? '' : '?setup');
+    bar.innerHTML = `<span>${isPreview ? 'Preview · sample data' : 'Demo · nothing is saved'}</span>
+      <a href="${esc(exit)}" class="demo-exit">${hasRealData ? 'Use my own' : 'Set up mine'} →</a>`;
     document.querySelector('.topbar').before(bar);
   }
 

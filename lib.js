@@ -189,8 +189,8 @@
     ].map(([propertyId, description, amount, category, n], i) =>
       ({ id: 9000 + i, date: inYear(n), description, amount, category, propertyId }));
     const reminders = [
-      { id: 1, name: '🔥 Gas Safety Check', dueDate: addDays(todayIso, 15), type: 'gas', completed: false, propertyId: null },
-      { id: 4, name: '🛡️ Insurance Renewal', dueDate: addDays(todayIso, 25), type: 'insurance', completed: false, propertyId: null }
+      { id: 1, name: 'Gas Safety Check', dueDate: addDays(todayIso, 15), type: 'gas', completed: false, propertyId: null },
+      { id: 4, name: 'Insurance Renewal', dueDate: addDays(todayIso, 25), type: 'insurance', completed: false, propertyId: null }
     ];
     const aobReminders = [{ id: 9100, name: 'Check smoke alarms at Oak Lane', dueDate: addDays(todayIso, 9), completed: false }];
     return { properties, expenses, reminders, aobReminders, currentPropertyId: 'demo_oak' };

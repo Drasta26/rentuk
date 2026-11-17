@@ -458,3 +458,68 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .tagline-line { color: var(--brand-text); font-weight: 700; letter-spacing: 0.01em; }
 .tagline-line svg { color: var(--brand-text); }
 .bento .hero .score-ring, .bento .hero .score-ring.level-fair, .bento .hero .score-ring.level-great { --c: #ffffff; }
+
+/* ---- Vibrant palette (Nov 2026): indigo brand, vivid sky blue, rich maroon ---- */
+body::before {
+  background:
+    radial-gradient(38% 30% at 82% 10%, rgba(99, 102, 241, 0.45), transparent 70%),
+    radial-gradient(38% 32% at 10% 55%, rgba(56, 189, 248, 0.5), transparent 70%),
+    radial-gradient(34% 26% at 85% 88%, rgba(190, 18, 60, 0.2), transparent 70%);
+}
+.tile-sky, .bento .tile.tile-sky, .screen-more .tile.tile-sky {
+  color: #08223f; border-color: rgba(255, 255, 255, 0.6);
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.45), transparent 55%), linear-gradient(150deg, #38bdf8 0%, #60c8fa 45%, #a5e0fd 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 16px 32px -16px rgba(2, 132, 199, 0.65);
+}
+.tile-maroon, .bento .tile.tile-maroon, .screen-more .tile.tile-maroon {
+  color: #fff; border-color: rgba(255, 255, 255, 0.2);
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 55%), linear-gradient(150deg, #7f1235 0%, #9f1239 45%, #c81e4a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 16px 32px -16px rgba(136, 19, 55, 0.75);
+}
+.tile-sky small, .tile-sky .tile-body > span, .tile-sky .tile-wide small, .screen-more .tile-sky small { color: #0b3a5e !important; }
+.tile-maroon small, .tile-maroon .tile-body > span, .screen-more .tile-maroon small { color: rgba(255, 255, 255, 0.9) !important; }
+.bento .tile.tile-maroon strong, .bento .t-next.tile-maroon strong, .screen-more .tile-maroon strong { color: #fff; }
+.bento .tile.tile-sky strong { color: #08223f; }
+
+/* Icon chips: one crisp line icon in a rounded square */
+.ichip { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; flex-shrink: 0; color: #fff; }
+.ichip svg { width: 22px; height: 22px; stroke-width: 2; }
+.ichip-sm { width: 34px; height: 34px; border-radius: 11px; }
+.ichip-sm svg { width: 18px; height: 18px; }
+.ichip-indigo { background: linear-gradient(135deg, #4f46e5, #7c6af7); box-shadow: 0 6px 14px -6px rgba(79, 70, 229, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.ichip-sky { background: linear-gradient(135deg, #0284c7, #38bdf8); box-shadow: 0 6px 14px -6px rgba(2, 132, 199, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.ichip-maroon { background: linear-gradient(135deg, #881337, #c81e4a); box-shadow: 0 6px 14px -6px rgba(136, 19, 55, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.3); }
+.ichip-glass { background: rgba(255, 255, 255, 0.28); border: 1px solid rgba(255, 255, 255, 0.55); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 6px 14px -8px rgba(0, 0, 0, 0.25); }
+.tile-sky .ichip-glass { color: #075985; background: rgba(255, 255, 255, 0.6); }
+.bento .avatar { background: linear-gradient(135deg, #4f46e5, #0ea5e9); box-shadow: 0 8px 18px -8px rgba(79, 70, 229, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.35); }
+.bento .avatar svg { width: 22px; height: 22px; }
+.ways-mini i { width: 32px; height: 32px; background: rgba(255, 255, 255, 0.75); color: #075985; }
+.ways-mini i svg { width: 16px; height: 16px; stroke-width: 2; }
+.way { gap: 8px; }
+.way .ichip { width: 46px; height: 46px; }
+.btn svg { width: 20px; height: 20px; }
+.thumb-down svg { transform: rotate(180deg); }
+.chip svg { width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; }
+.icon-btn svg { width: 22px; height: 22px; color: var(--brand-text); }
+.screen-more .tile .ichip { margin-bottom: 4px; }
+.auto-badge { width: 44px; }
+
+/* Tab bar with life: each section has its colour; the open one glows */
+.tabbar { padding: 7px; }
+.tabbar button { color: var(--muted); }
+.tabbar button svg { width: 24px; height: 24px; transition: transform 0.2s; }
+.tabbar button[data-tab="home"] svg, .tabbar button[data-tab="dates"] svg { color: #4f46e5; }
+.tabbar button[data-tab="checks"] svg { color: #be123c; }
+.tabbar button[data-tab="money"] svg, .tabbar button[data-tab="more"] svg { color: #0284c7; }
+.tabbar button.active { color: #fff; background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 55%, #0ea5e9 100%);
+  box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.tabbar button.active svg { color: #fff; transform: translateY(-1px) scale(1.06); }
+.tabbar button:not(.active):hover svg { transform: translateY(-2px); }
+@media (max-height: 700px) {
+  .bento .ichip, .bento .avatar { width: 30px; height: 30px; border-radius: 10px; }
+  .bento .avatar { border-radius: 50%; font-size: 0.9rem; }
+  .bento .ichip svg { width: 16px; height: 16px; }
+  .bento .tile { gap: 2px; padding: 12px 14px; }
+  .bento .tile-body strong { font-size: 0.98rem; -webkit-line-clamp: 1; }
+  .bento .tile-body small { font-size: 0.66rem; }
+}
