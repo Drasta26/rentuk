@@ -849,7 +849,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions. <button class="link-btn" id="c-priv">Privacy</button></span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
@@ -863,7 +863,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     if (!chat.turns.length) bubble('assistant', 'Hello. I’m an AI assistant for landlords in England. What would you like to know?');
     chat.turns.forEach(t => bubble(t.role, t.text));
     body.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
-    body.querySelector('#c-priv').onclick = () => { close(); privacySheet(); };
     const forget = body.querySelector('#c-forget');
     if (forget) forget.onclick = () => { chat.key = ''; chat.turns = []; openChat(p); };
     const ask = async () => {

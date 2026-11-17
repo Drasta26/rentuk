@@ -650,3 +650,35 @@ body::before {
 .chat-foot .fine svg { width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; }
 /* Keep the install hint out of the way while setup, a sheet, a dialog or the chat is open. */
 body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) #pwa-install { display: none; }
+
+/* ---- Install help ---- */
+.pwa-bar-icon { width: 36px; height: 36px; border-radius: 9px; flex: none; }
+#pwa-guide {
+  position: fixed; inset: 0; z-index: 11000; background: rgba(20, 24, 58, 0.45);
+  display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(84px + env(safe-area-inset-bottom));
+}
+.pwa-guide-card {
+  width: 100%; max-width: 420px; padding: 20px; border-radius: 24px; text-align: center;
+  background: var(--glass-strong); border: 1px solid var(--glass-line); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--glass-hi), var(--float); color: var(--text);
+}
+.pwa-guide-card img { border-radius: 14px; }
+.pwa-guide-card h2 { font-size: 1.15rem; margin: 8px 0 12px; }
+.pwa-guide-card ol { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; text-align: left; }
+.pwa-guide-card li { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; line-height: 1.35; }
+.pwa-guide-card small { display: block; color: var(--gray); font-size: 0.8rem; }
+.pwa-step-icon {
+  flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--tint-2, rgba(99, 102, 241, 0.15)); color: var(--brand-text); font-weight: 800;
+}
+.pwa-step-icon svg { width: 22px; height: 22px; }
+.pwa-inline svg { width: 14px; height: 14px; vertical-align: -2px; color: var(--brand-text); }
+.pwa-guide-card .btn { width: 100%; }
+.pwa-guide-arrow {
+  position: absolute; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 1.8rem; font-weight: 800; line-height: 1; color: #fff; background: var(--brand-solid); box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.9);
+  animation: pwa-bounce 1.2s ease-in-out infinite;
+}
+@keyframes pwa-bounce { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, 10px); } }
+@media (prefers-reduced-motion: reduce) { .pwa-guide-arrow { animation: none; } }

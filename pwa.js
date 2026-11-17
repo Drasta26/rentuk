@@ -51,16 +51,24 @@
   function showInstallBar(text, actionLabel, onAction) {
     if (isInstalled() || dismissed() || document.getElementById('pwa-update')) return;
     showBar('pwa-install', text, actionLabel, onAction);
+    const icon = document.createElement('img');
+    icon.src = 'icons/icon-192.png';
+    icon.alt = '';
+    icon.width = icon.height = 36;
+    icon.className = 'pwa-bar-icon';
+    document.getElementById('pwa-install').prepend(icon);
     const close = document.querySelector('#pwa-install .pwa-close');
     if (close) close.addEventListener('click', rememberDismiss);
   }
 
-  // Android and desktop Chrome/Edge: offer the browser's own install prompt.
+  const INSTALL_TEXT = 'Add RentUK to your home screen.';
+
+  // Android and desktop Chrome/Edge: the Install button opens the browser's own install prompt.
   let installEvent = null;
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     installEvent = e;
-    showInstallBar('Install RentUK for one-tap, offline access.', 'Install app', bar => {
+    showInstallBar(INSTALL_TEXT, 'Install', bar => {
       bar.remove();
       installEvent.prompt();
       installEvent.userChoice.finally(() => { installEvent = null; });
@@ -71,9 +79,44 @@
     if (bar) bar.remove();
   });
 
-  // iPhone and iPad have no install prompt, so show how to do it by hand.
+  // iPhone and iPad do not let websites install themselves, so the Install button
+  // opens a short picture guide with an arrow pointing at Safari's toolbar.
+  const SHARE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+  const ADD_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>';
+  const DOTS_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+  const isIosSafari = isIos && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(navigator.userAgent);
+
+  function showIosGuide() {
+    if (document.getElementById('pwa-guide')) return;
+    const g = document.createElement('div');
+    g.id = 'pwa-guide';
+    g.setAttribute('role', 'dialog');
+    g.setAttribute('aria-modal', 'true');
+    g.setAttribute('aria-labelledby', 'pwa-guide-title');
+    g.innerHTML =
+      '<div class="pwa-guide-card">' +
+        '<img src="icons/icon-192.png" alt="" width="56" height="56">' +
+        '<h2 id="pwa-guide-title">Add RentUK to your home screen</h2>' +
+        '<ol>' +
+          '<li><span class="pwa-step-icon">' + SHARE_SVG + '</span><span>Tap <b>Share</b>' + (isIosSafari ? ' in the bar below.<small>Can’t see it? Tap <i class="pwa-inline">' + DOTS_SVG + '</i> first.</small>' : ' in your browser’s menu.') + '</span></li>' +
+          '<li><span class="pwa-step-icon">' + ADD_SVG + '</span><span>Tap <b>Add to Home Screen</b>.<small>Scroll down or tap “View more” if needed.</small></span></li>' +
+          '<li><span class="pwa-step-icon pwa-step-num">✓</span><span>Tap <b>Add</b>. RentUK appears on your home screen.</span></li>' +
+        '</ol>' +
+        '<button class="btn" type="button">Got it</button>' +
+      '</div>' +
+      (isIosSafari ? '<div class="pwa-guide-arrow" aria-hidden="true">↓</div>' : '');
+    const close = () => g.remove();
+    g.querySelector('.btn').addEventListener('click', close);
+    g.addEventListener('click', e => { if (e.target === g) close(); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
+    });
+    document.body.appendChild(g);
+    g.querySelector('.btn').focus();
+  }
+
   if (isIos && !isInstalled()) {
-    setTimeout(() => showInstallBar('Install RentUK: tap Share, then Add to Home Screen.'), 3000);
+    setTimeout(() => showInstallBar(INSTALL_TEXT, 'Install', bar => { bar.remove(); showIosGuide(); }), 3000);
   }
 
   // Offline cache and "new version" message. Service workers need https or localhost,
