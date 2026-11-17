@@ -712,10 +712,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // ---- Ask RentUK: chat with Claude using the user's own Anthropic API key ----
   // The key lives only in this tab's memory and is forgotten when the tab closes (never saved to storage).
-  // Questions go straight from this device to Anthropic; RentUK has no server and never sees them.
-  // Address of the RentUK chat relay, which holds the owner's Anthropic key on the server so users need no key.
-  // Empty until the relay (relay/worker.mjs) is deployed; until then only someone with their own key can chat.
-  const CHAT_RELAY = '';
+  // Questions go through the RentUK chat relay (relay/worker.mjs, a Cloudflare Worker) to Anthropic.
+  // The relay holds the owner's Anthropic key as a secret, so users need no key; it never logs or stores questions.
+  // Someone who enters their own key in this tab talks to Anthropic directly instead.
+  const CHAT_RELAY = 'https://rentuk-chat.rentuk.workers.dev/';
   const chat = { key: '', turns: [], withSummary: false, busy: false };
   const CHAT_SYSTEM = `You are the assistant inside RentUK, a private app for landlords in England.
 Help with renting rules, landlord safety checks, deposits, tenancies, rental income and tax, and running a let property.
@@ -839,7 +839,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
