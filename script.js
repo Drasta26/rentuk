@@ -671,15 +671,18 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Public feedback address: an addy.io forwarding alias, so no personal email appears in the app or code.
+  const FEEDBACK_EMAIL = 'f7576a67-4e35-4c5b-967f-bffcc1c3a98a@anonaddy.me';
   function feedbackSheet() {
     openSheet('How is RentUK for you?', `
       <div class="stack">
         <button class="btn" id="f-up">${ICON.thumb}It’s helping</button>
         <button class="btn btn-ghost thumb-down" id="f-down">${ICON.thumb}Something’s not right</button>
+        <a class="btn btn-ghost" href="mailto:${FEEDBACK_EMAIL}?subject=RentUK%20feedback">${ICON.mail}Email us</a>
       </div>
-      <p class="fine">Nothing is sent anywhere. To tell us more, open an issue on the project’s GitHub page.</p>`, s => {
+      <p class="fine">Nothing is sent unless you choose to email us. Emails open in your own mail app, and your property data is never included.</p>`, s => {
       s.querySelector('#f-up').onclick = () => showCustomAlert('Thank you. That means a lot.', 'Thanks');
-      s.querySelector('#f-down').onclick = () => showCustomAlert('Sorry about that. Please tell us what went wrong on GitHub (github.com/Drasta26/rentuk/issues). Your data is never included.', 'Help us fix it');
+      s.querySelector('#f-down').onclick = () => showCustomAlert('Sorry about that. Please tap “Email us” and tell us what went wrong. Your data is never included.', 'Help us fix it');
     });
   }
 
