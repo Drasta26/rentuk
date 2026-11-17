@@ -523,3 +523,40 @@ body::before {
   .bento .tile-body strong { font-size: 0.98rem; -webkit-line-clamp: 1; }
   .bento .tile-body small { font-size: 0.66rem; }
 }
+
+/* ---- Two-colour system (17 Nov 2026): deep indigo = needs a look, sky blue = calm. Urgency is shown by an amber cue, not a third colour. ---- */
+body::before {
+  background:
+    radial-gradient(38% 30% at 82% 10%, rgba(99, 102, 241, 0.42), transparent 70%),
+    radial-gradient(38% 32% at 10% 55%, rgba(56, 189, 248, 0.45), transparent 70%),
+    radial-gradient(34% 26% at 85% 88%, rgba(129, 140, 248, 0.3), transparent 70%);
+}
+.tile-deep, .bento .tile.tile-deep, .screen-more .tile.tile-deep {
+  color: #fff; border-color: rgba(255, 255, 255, 0.16);
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.16), transparent 55%), linear-gradient(150deg, #1e1b4b 0%, #312e81 50%, #3f3cbb 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 16px 32px -16px rgba(30, 27, 75, 0.8);
+}
+.tile-deep small, .tile-deep .tile-body > span, .screen-more .tile-deep small { color: rgba(255, 255, 255, 0.86) !important; }
+.bento .tile.tile-deep strong, .screen-more .tile-deep strong { color: #fff; }
+.ichip-warn { color: #fbbf24 !important; border-color: rgba(251, 191, 36, 0.55) !important; box-shadow: 0 0 18px -2px rgba(251, 191, 36, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important; }
+.tabbar button[data-tab="checks"] svg { color: #0284c7; }
+.tabbar button[data-tab="money"] svg { color: #4f46e5; }
+.tabbar button.active svg { color: #fff; }
+
+/* Checks: light green when done, light amber when it needs doing */
+.check-row.status-ok { background: linear-gradient(150deg, rgba(220, 252, 231, 0.95), rgba(240, 253, 244, 0.85)); border-color: rgba(34, 197, 94, 0.3); }
+.check-row.status-soon, .check-row.status-expired, .check-row.status-missing { background: linear-gradient(150deg, rgba(254, 243, 199, 0.95), rgba(255, 251, 235, 0.88)); border-color: rgba(245, 158, 11, 0.38); }
+.check-row.status-expired { border-color: rgba(220, 38, 38, 0.45); }
+.dates-head { margin-top: 6px; min-height: 44px; }
+.dates-head .pill-btn { min-height: 40px; }
+
+/* More: four big tiles fill most of the screen */
+.screen-more .tiles { flex: 1; min-height: 0; grid-template-rows: 1fr 1fr; grid-auto-rows: auto; gap: 16px; }
+.screen-more .tile { justify-content: space-between; padding: 20px 18px; }
+.screen-more .tile .ichip { width: 52px; height: 52px; border-radius: 16px; }
+.screen-more .tile .ichip svg { width: 26px; height: 26px; }
+.screen-more .tile-wide strong { font-size: 1.15rem; }
+.screen-more .tile-wide small { font-size: 0.88rem; }
+.tabbar { grid-template-columns: repeat(4, 1fr); }
+.screen-checks .fine { padding-right: 76px; }
+.screen-more { padding-bottom: 88px; }

@@ -174,11 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
     up: svg('<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>'),
     thumb: svg('<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>')
   };
-  // A small rounded square holding one icon; tone is sky, maroon or indigo.
+  // A small rounded square holding one icon; tone is sky, indigo, deep or glass.
   const chip = (name, tone = 'indigo', extra = '') => `<span class="ichip ichip-${tone} ${extra}" aria-hidden="true">${ICON[name]}</span>`;
   const TABS = [
     { id: 'home', label: 'Home' }, { id: 'checks', label: 'Checks' }, { id: 'money', label: 'Money' },
-    { id: 'dates', label: 'Dates' }, { id: 'more', label: 'More' }
+    { id: 'more', label: 'More' }
   ];
   let screen = 'home';
   let moneyView = 'overview';
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function loadTenants() { render(); }
 
   function go(tab) {
-    screen = tab;
+    screen = SCREENS[tab] ? tab : 'home';
     render(true);
     document.getElementById('main').focus({ preventScroll: true });
   }
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const bad = r.items.find(i => i.status === 'expired') || r.items.find(i => i.status === 'missing');
     if (bad) return { tone: 'bad', title: bad.label, text: bad.status === 'expired' ? 'Expired. Renew it now.' : 'Not set yet. Takes a few seconds.', go: 'checks' };
     const due = allDates(p).find(d => !d.completed && d.dueDate);
-    if (due && daysFrom(due.dueDate) <= 60) return { tone: toneFor(due.dueDate), title: due.name, text: whenText(due.dueDate), go: 'dates' };
+    if (due && daysFrom(due.dueDate) <= 60) return { tone: toneFor(due.dueDate), title: due.name, text: whenText(due.dueDate), go: 'checks' };
     const soon = r.items.find(i => i.status === 'soon');
     if (soon) return { tone: 'warn', title: soon.label, text: statusText(soon), go: 'checks' };
     return { tone: 'ok', title: 'All clear', text: 'Nothing needs you right now. Enjoy it.', go: null };
@@ -300,6 +300,26 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>`;
   }
 
+  // Dates shown under the checks. Certificate renewals and the standard gas, electrical, EPC and deposit
+  // reminders are left out because the check rows above already cover them.
+  const CHECK_TYPES = ['gas', 'electrical', 'epc', 'deposit'];
+  const checkDates = p => allDates(p).filter(d => !(d.kind === 'auto' && d.go === 'checks') && !(d.kind === 'std' && CHECK_TYPES.includes(d.type)));
+  const dateRow = d => d.kind === 'auto' ? `
+        <div class="row">
+          <span class="auto-badge">${chip(d.go === 'tenant' ? 'user' : 'checks', d.go === 'tenant' ? 'sky' : 'indigo', 'ichip-sm')}</span>
+          <button class="row-text" ${d.go === 'tenant' ? 'data-action="tenant"' : 'data-tab="checks"'}>
+            <strong>${esc(d.name)}</strong>
+            <small class="tone-${toneFor(d.dueDate)}">${esc(ukDate(d.dueDate))} · ${whenText(d.dueDate)}</small>
+          </button>
+        </div>` : `
+        <div class="row ${d.completed ? 'done' : ''}">
+          <button class="tick-btn ${d.completed ? 'on' : ''}" data-action="toggle-date" data-kind="${d.kind}" data-id="${esc(d.id)}" aria-pressed="${!!d.completed}" aria-label="Mark ${esc(d.name)} done">${ICON.tick}</button>
+          <button class="row-text" data-action="date" data-kind="${d.kind}" data-id="${esc(d.id)}">
+            <strong>${esc(d.name)}</strong>
+            <small class="${d.dueDate && !d.completed ? 'tone-' + toneFor(d.dueDate) : ''}">${d.completed ? 'Done' : d.dueDate ? `${esc(ukDate(d.dueDate))} · ${whenText(d.dueDate)}` : 'Tap to set a date'}</small>
+          </button>
+        </div>`;;
+
   const SCREENS = {
     home(p) {
       const r = RentUKLib.complianceScore(p.compliance, todayIso());
@@ -313,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
         <div class="bento">
-          <button class="tile t-next tone-${n.tone} ${n.tone === 'ok' ? 'tile-sky' : 'tile-maroon'}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
-            ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass')}
+          <button class="tile t-next tone-${n.tone} ${n.tone === 'ok' ? 'tile-sky' : 'tile-deep'}" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
+            ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass', n.tone === 'ok' ? '' : 'ichip-warn')}
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           </button>
           <button class="tile t-money tile-sky" data-tab="money">
@@ -327,7 +347,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="tile-body"><small>Your tenant</small><strong>${t ? esc(t.name) : 'Add your tenant'}</strong>
               <span class="ways-mini" aria-hidden="true">${t ? `<i>${ICON.phone}</i><i>${ICON.chat}</i><i>${ICON.mail}</i>` : 'Name, contact, rent'}</span></span>
           </button>
-          <button class="tile t-dates ${soon.length ? 'tile-maroon' : 'tile-sky'}" data-tab="dates">
+          <button class="tile t-dates ${soon.length ? 'tile-deep' : 'tile-sky'}" data-tab="checks">
             ${chip('dates', 'glass')}
             <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
               <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
@@ -359,10 +379,13 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="screen-head">
           ${scoreRing(r.score, r.level, 64)}
-          <div class="grow"><h2>Legal checks</h2><p>${done} of ${r.items.length} done · tap a check for help</p></div>
+          <div class="grow"><h2>Checks &amp; dates</h2><p>${done} of ${r.items.length} legal checks done</p></div>
           <button class="icon-btn" data-action="share" aria-label="Share my score (no personal details)">${ICON.megaphone}</button>
         </div>
-        ${pager('checks', r.items, h, 240, 70, row)}
+        <button class="fab" data-action="add-date" aria-label="Add a date">${ICON.plus}</button>
+        ${pager('checks', [...r.items.map(i => ({ t: 'check', i })), { t: 'head' }, ...checkDates(p).map(d => ({ t: 'date', d }))], h, 320, 70,
+          x => x.t === 'check' ? row(x.i) : x.t === 'date' ? dateRow(x.d) : `
+          <div class="list-head dates-head"><span>Your dates</span><button class="pill-btn" data-action="calendar">${ICON.dates}Add to calendar</button></div>`)}
         <p class="fine">England rules, checked against GOV.UK and HSE on 30 Oct 2026. A guide, not legal advice.</p>`;
     },
 
@@ -410,31 +433,6 @@ document.addEventListener('DOMContentLoaded', function() {
         ${recentCosts(p, h)}`;
     },
 
-    dates(p, h) {
-      const row = d => d.kind === 'auto' ? `
-        <div class="row">
-          <span class="auto-badge">${chip(d.go === 'tenant' ? 'user' : 'checks', d.go === 'tenant' ? 'sky' : 'indigo', 'ichip-sm')}</span>
-          <button class="row-text" ${d.go === 'tenant' ? 'data-action="tenant"' : 'data-tab="checks"'}>
-            <strong>${esc(d.name)}</strong>
-            <small class="tone-${toneFor(d.dueDate)}">${esc(ukDate(d.dueDate))} · ${whenText(d.dueDate)}</small>
-          </button>
-        </div>` : `
-        <div class="row ${d.completed ? 'done' : ''}">
-          <button class="tick-btn ${d.completed ? 'on' : ''}" data-action="toggle-date" data-kind="${d.kind}" data-id="${esc(d.id)}" aria-pressed="${!!d.completed}" aria-label="Mark ${esc(d.name)} done">${ICON.tick}</button>
-          <button class="row-text" data-action="date" data-kind="${d.kind}" data-id="${esc(d.id)}">
-            <strong>${esc(d.name)}</strong>
-            <small class="${d.dueDate && !d.completed ? 'tone-' + toneFor(d.dueDate) : ''}">${d.completed ? 'Done' : d.dueDate ? `${esc(ukDate(d.dueDate))} · ${whenText(d.dueDate)}` : 'Tap to set a date'}</small>
-          </button>
-        </div>`;
-      return `
-        <div class="screen-head"><h2 class="screen-h grow">Key dates</h2>
-          <button class="pill-btn" data-action="calendar">${ICON.dates}Add to calendar</button></div>
-        <button class="fab" data-action="add-date" aria-label="Add a date">${ICON.plus}</button>
-        ${pager('dates', allDates(p), h, 300, 66, row)}
-        ${dateIdeas(h - 300 - allDates(p).length * 74)}
-`;
-    },
-
     more() {
       const item = (action, icon, tone, title, text) =>
         `<button class="tile tile-wide tile-${tone}" data-action="${action}">${chip(icon, 'glass')}<span><strong>${title}</strong><small>${text}</small></span></button>`;
@@ -442,21 +440,14 @@ document.addEventListener('DOMContentLoaded', function() {
         <h2 class="screen-h">Everything else</h2>
         <div class="tiles tiles-more">
           ${item('move-in', 'clipboard', 'sky', 'Move-in pack', 'Print-ready checklist')}
-          ${item('data', 'lock', 'maroon', 'Your data', 'Backup, restore, delete')}
-          ${item('feedback', 'chat', 'maroon', 'Feedback', 'Tell us what to fix')}
+          ${item('data', 'lock', 'deep', 'Your data', 'Backup, restore, delete')}
+          ${item('feedback', 'chat', 'deep', 'Feedback', 'Tell us what to fix')}
           ${item('about', 'sparkle', 'sky', 'About', 'Why RentUK exists')}
         </div>`;
     }
   };
 
   // One-tap ideas for common landlord dates, shown only when there is room.
-  const IDEAS = ['Boiler service', 'Property inspection', 'Rent review', 'Lease renewal talk'];
-  function dateIdeas(spare) {
-    if (spare < 120) return '';
-    return `<div class="list-head"><span>Quick add</span></div>
-      <div class="chips">${IDEAS.map(i => `<button class="chip" data-action="idea" data-name="${esc(i)}">${esc(i)}</button>`).join('')}</div>`;
-  }
-
   // Fill spare space on Money with the latest costs, only as many as fit.
   function recentCosts(p, h) {
     const fit = Math.floor((h - 540) / 66);
@@ -633,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <p class="sheet-lead"><span>${esc(p.name)}${t.leaseEnd ? ` · lease ends ${esc(ukDate(t.leaseEnd))}` : ''}${t.rentAmount ? ` · ${money(t.rentAmount)} a month` : ''}</span></p>
       ${phone || email ? `<div class="ways">
         ${phone ? way('tel:' + phone, 'phone', 'sky', 'Call') + way('sms:' + phone, 'chat', 'indigo', 'Text') : ''}
-        ${email ? way('mailto:' + email + '?subject=' + encodeURIComponent(p.name), 'mail', 'maroon', 'Email') : ''}
+        ${email ? way('mailto:' + email + '?subject=' + encodeURIComponent(p.name), 'mail', 'sky', 'Email') : ''}
       </div>` : '<p class="story">No phone number or email saved yet.</p>'}
       <button class="btn btn-ghost" id="t-edit">Edit tenant details</button>`, s => {
       s.querySelector('#t-edit').onclick = () => tenantSheet(p);
