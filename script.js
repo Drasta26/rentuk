@@ -172,9 +172,8 @@ document.addEventListener('DOMContentLoaded', function() {
     trash: svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>'),
     down: svg('<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>'),
     up: svg('<path d="M12 16V5M7 10l5-5 5 5M5 20h14"/>'),
+    video: svg('<rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5l5-3v9l-5-3z"/>'),
     mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
-    speaker: svg('<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11"/>'),
-    mute: svg('<path d="M4 10v4h4l5 4V6L8 10z"/><path d="M17 10l4 4M21 10l-4 4"/>'),
     send: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
     thumb: svg('<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>')
   };
@@ -714,7 +713,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // ---- Ask RentUK: chat with Claude using the user's own Anthropic API key ----
   // The key lives only in this tab's memory and is forgotten when the tab closes (never saved to storage).
   // Questions go straight from this device to Anthropic; RentUK has no server and never sees them.
-  const chat = { key: '', turns: [], withSummary: false, busy: false, speak: false, voiceOk: false };
+  // Address of the RentUK chat relay, which holds the owner's Anthropic key on the server so users need no key.
+  // Empty until the relay (relay/worker.mjs) is deployed; until then only someone with their own key can chat.
+  const CHAT_RELAY = '';
+  const chat = { key: '', turns: [], withSummary: false, busy: false };
   const CHAT_SYSTEM = `You are the assistant inside RentUK, a private app for landlords in England.
 Help with renting rules, landlord safety checks, deposits, tenancies, rental income and tax, and running a let property.
 Be accurate. If you are not sure, say so. For legal or tax questions give general information, name the relevant GOV.UK or HMRC page, and say it is not legal or tax advice when that matters.
@@ -734,7 +736,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   function chatErrorText(status, body) {
-    if (status === 401) return 'That API key was not accepted. Check it and try again.';
+    if (status === 401) return chat.key ? 'That API key was not accepted. Check it and try again.' : 'Chat is unavailable right now. Try again later.';
     if (status === 402 || /credit|billing/i.test(body)) return 'Your Anthropic account needs credit before Claude can answer.';
     if (status === 429) return 'Too many questions at once. Wait a moment and try again.';
     if (status >= 500) return 'Claude is busy or unavailable right now. Try again shortly.';
@@ -742,10 +744,15 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   async function askClaude(p) {
+    const messages = chat.turns.map(t => ({ role: t.role, content: t.content }));
     const system = chat.withSummary ? CHAT_SYSTEM + '\n\n' + chatSummary(p) : CHAT_SYSTEM;
     let res;
     try {
-      res = await fetch('https://api.anthropic.com/v1/messages', {
+      res = CHAT_RELAY && !chat.key ? await fetch(CHAT_RELAY, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages, summary: chat.withSummary ? chatSummary(p) : '' })
+      }) : await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -760,7 +767,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           output_config: { effort: 'low' },
           fallbacks: 'default',
           system,
-          messages: chat.turns.map(t => ({ role: t.role, content: t.content }))
+          messages
         })
       });
     } catch (e) {
@@ -775,27 +782,15 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     return { content: data.content, text: text + (data.stop_reason === 'max_tokens' ? '\n\n(Answer cut short.)' : '') };
   }
 
-  // Speak a reply with an on-device voice: a woman's British voice if the device has one, then any English woman's voice. Network voices are skipped
-  // so the reply text never leaves the device for speech.
-  function speak(text) {
-    if (!('speechSynthesis' in window)) return false;
-    speechSynthesis.cancel();
-    const local = speechSynthesis.getVoices().filter(v => v.localService === true);
-    const gb = local.filter(v => /^en[-_]GB/i.test(v.lang)), en = local.filter(v => /^en/i.test(v.lang));
-    const female = /female|serena|kate|martha|stephanie|libby|sonia|fiona|moira|tessa|karen|samantha/i;
-    const voice = gb.find(v => female.test(v.name)) || en.find(v => female.test(v.name)) || gb[0] || en[0];
-    if (!voice) return false;
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = voice; u.lang = voice.lang;
-    speechSynthesis.speak(u);
-    return true;
-  }
+  const COMING_SOON = `<div class="soon-row" aria-label="Coming soon">
+      <span class="soon-pill">${ICON.mic}Voice chat <em>coming soon</em></span>
+      <span class="soon-pill">${ICON.video}Video chat <em>Premium · coming soon</em></span>
+    </div>`;
 
   function openChat(p) {
     closeSheet();
     const old = document.getElementById('chat-screen');
     if (old) old.remove();
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const el = document.createElement('div');
     el.id = 'chat-screen';
     el.className = 'chat-screen';
@@ -804,31 +799,27 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         <button class="icon-btn" id="c-back" aria-label="Close chat">${ICON.back}</button>
         <img src="icons/assistant.svg" alt="" width="40" height="40" class="chat-avatar">
         <div class="grow"><h3>RentUK Assistant</h3><p>AI assistant · powered by Claude</p></div>
-        <button class="icon-btn" id="c-voice" aria-pressed="${chat.speak}" aria-label="Read replies aloud">${chat.speak ? ICON.speaker : ICON.mute}</button>
       </header>
       <div class="chat-body" id="c-body"></div>`;
     document.body.appendChild(el);
-    const close = () => { if ('speechSynthesis' in window) speechSynthesis.cancel(); el.remove(); };
+    const close = () => el.remove();
     makeDialog(el, close);
     el.querySelector('#c-back').onclick = close;
-    const voiceBtn = el.querySelector('#c-voice');
-    voiceBtn.onclick = () => {
-      chat.speak = !chat.speak;
-      voiceBtn.setAttribute('aria-pressed', chat.speak);
-      voiceBtn.innerHTML = chat.speak ? ICON.speaker : ICON.mute;
-      if (!chat.speak && 'speechSynthesis' in window) speechSynthesis.cancel();
-    };
     const body = el.querySelector('#c-body');
-    if (!chat.key) {
+    if (!CHAT_RELAY && !chat.key) {
       body.innerHTML = `
         <div class="chat-intro">
           <img src="icons/assistant.svg" alt="" width="96" height="96" class="chat-avatar-lg">
           <h2>Hello, I’m your RentUK Assistant</h2>
-          <p>I’m an AI, not a person. Ask me about safety checks, deposits, tenancies, rent and tax for letting in England.</p>
-          <p class="fine">${ICON.lock} Your questions go straight from this device to Anthropic, the maker of Claude, using your own API key. RentUK never sees or stores them. The key stays in this tab only and is forgotten when you close it.</p>
-          <label class="field"><span>Your Anthropic API key</span><input id="k-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
-          <button class="btn btn-big" id="k-go">Start chatting</button>
-          <p class="fine">Each question uses credit on your Anthropic account. <a href="https://platform.claude.com/settings/keys" target="_blank" rel="noopener noreferrer">Get a key</a></p>
+          <p>I’m an AI, not a person. Soon you’ll be able to ask me about safety checks, deposits, tenancies, rent and tax for letting in England, free and with no sign-up.</p>
+          <p class="soon-big">Chat is coming soon</p>
+          ${COMING_SOON}
+          <details class="own-key">
+            <summary>Have your own Anthropic API key? Use it now</summary>
+            <p class="fine">${ICON.lock} Your questions go straight from this device to Anthropic, the maker of Claude. RentUK never sees or stores them. The key stays in this tab only and is forgotten when you close it.</p>
+            <label class="field"><span>Anthropic API key</span><input id="k-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
+            <button class="btn" id="k-go">Start chatting</button>
+          </details>
         </div>`;
       const go = () => {
         const v = body.querySelector('#k-key').value.trim();
@@ -842,13 +833,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     body.innerHTML = `
       <div class="chat-log" id="c-log" aria-live="polite"></div>
       <div class="chat-dock">
+        ${COMING_SOON}
         <label class="chat-opt"><input type="checkbox" id="c-sum" ${chat.withSummary ? 'checked' : ''}> Share this property’s scores and totals (no names or contact details)</label>
         <div class="chat-input">
-          ${SR ? `<button class="chat-mic" id="c-mic" aria-label="Speak your question">${ICON.mic}</button>` : ''}
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><button class="link-btn" id="c-forget">Forget key</button></div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
@@ -862,7 +853,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     if (!chat.turns.length) bubble('assistant', 'Hello. I’m an AI assistant for landlords in England. What would you like to know?');
     chat.turns.forEach(t => bubble(t.role, t.text));
     body.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
-    body.querySelector('#c-forget').onclick = () => { chat.key = ''; chat.turns = []; openChat(p); };
+    const forget = body.querySelector('#c-forget');
+    if (forget) forget.onclick = () => { chat.key = ''; chat.turns = []; openChat(p); };
     const ask = async () => {
       const text = q.value.trim();
       if (!text || chat.busy) return;
@@ -879,33 +871,11 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       } else {
         chat.turns.push({ role: 'assistant', content: out.content, text: out.text });
         bubble('assistant', out.text);
-        if (chat.speak && !speak(out.text) && !chat.noVoiceNoted) {
-          chat.noVoiceNoted = true;
-          bubble('note', 'This browser has no on-device voice, so replies can’t be read aloud here without sending them to an online voice service.');
-        }
       }
       chat.busy = false; send.disabled = false; q.focus();
     };
     send.onclick = ask;
     q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); ask(); } });
-    const mic = body.querySelector('#c-mic');
-    if (mic) {
-      // Voice typing is done by the browser's own speech service, which may send audio to Google or Apple. Ask once.
-      mic.onclick = () => {
-        if (!chat.voiceOk) {
-          bubble('note', 'Voice typing uses your browser’s speech service. In Chrome or Safari this may send your voice to Google or Apple to turn it into text. RentUK never receives it. Tap the microphone again to go ahead.');
-          chat.voiceOk = true;
-          return;
-        }
-        const rec = new SR();
-        rec.lang = 'en-GB'; rec.interimResults = true;
-        mic.classList.add('on');
-        rec.onresult = e => { q.value = [...e.results].map(r => r[0].transcript).join(''); };
-        rec.onerror = () => mic.classList.remove('on');
-        rec.onend = () => { mic.classList.remove('on'); if (q.value.trim()) ask(); };
-        rec.start();
-      };
-    }
     q.focus();
   }
 

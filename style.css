@@ -634,3 +634,16 @@ body::before {
 .chat-mic.on { color: #fff; background: linear-gradient(135deg, #0ea5e9, #4f46e5); animation: pulse-mic 1.2s ease-in-out infinite; }
 @keyframes pulse-mic { 50% { box-shadow: 0 0 0 8px rgba(14, 165, 233, 0.18); } }
 .chat-send svg { width: 22px; height: 22px; }
+
+/* Chat: voice and video are coming soon */
+.soon-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.soon-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; color: #0b3a5e;
+  background: linear-gradient(150deg, rgba(186, 230, 253, 0.9), rgba(255, 255, 255, 0.8)); border: 1px dashed rgba(2, 132, 199, 0.45); }
+.soon-pill svg { width: 16px; height: 16px; color: #0284c7; }
+.soon-pill em { font-style: normal; font-weight: 600; color: #4338ca; }
+.soon-big { font-weight: 800; font-size: 1.05rem; color: var(--brand-text) !important; }
+.own-key { width: 100%; text-align: left; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.own-key summary { cursor: pointer; color: var(--muted); font-size: 0.85rem; font-weight: 600; text-align: center; list-style: none; }
+.own-key[open] { padding: 12px; border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.7); border: 1px solid var(--glass-line); }
+.own-key .fine svg { width: 14px; height: 14px; vertical-align: -2px; color: var(--ok); }
+.chat-dock .soon-row { justify-content: flex-start; }

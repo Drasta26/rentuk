@@ -1,0 +1,19 @@
+# RentUK chat relay. Deploy only with the CEO's approval. Needs Wrangler 4.36.0 or later.
+name = "rentuk-chat"
+main = "worker.mjs"
+compatibility_date = "2026-11-01"
+
+[vars]
+# Only these pages may use the relay (comma-separated, no trailing slash).
+ALLOWED_ORIGINS = "https://drasta26.github.io"
+
+# About 10 questions a minute per visitor (approximate, per Cloudflare location).
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60
+
+# The Anthropic key is NOT in this file. The owner adds it as a secret:  npx wrangler secret put ANTHROPIC_API_KEY
