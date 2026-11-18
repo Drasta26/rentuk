@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let screen = 'home';
   let moneyView = 'rent';
   let propView = 'main';
+  let homeScope = 'one';
   const pageAt = {};
 
   function loadMainUI() {
@@ -236,20 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .sort((a, b) => (a.completed - b.completed) || (!a.dueDate) - (!b.dueDate) || String(a.dueDate).localeCompare(String(b.dueDate)));
   }
 
-  function nextUp(p) {
-    const rs = rentState(p);
-    if (rs.tone === 'bad') return { tone: 'bad', title: 'Rent overdue', text: `${rs.title}. ${rs.text}.`, go: 'money' };
-    const iss = RentUKLib.issueSummary(issues, p.id, todayIso());
-    if (iss.urgent) return { tone: 'bad', title: 'Urgent repair', text: `${iss.first.title} · ${RentUKLib.ISSUE_STATUS[iss.first.status]}`, action: 'repairs' };
-    const r = RentUKLib.complianceScore(p.compliance, todayIso());
-    const bad = r.items.find(i => i.status === 'expired') || r.items.find(i => i.status === 'missing');
-    if (bad) return { tone: 'bad', title: bad.label, text: bad.status === 'expired' ? 'Expired. Renew it now.' : 'Not set yet. Takes a few seconds.', go: 'checks' };
-    const due = allDates(p).find(d => !d.completed && d.dueDate);
-    if (due && daysFrom(due.dueDate) <= 60) return { tone: toneFor(due.dueDate), title: due.name, text: whenText(due.dueDate), go: 'checks' };
-    const soon = r.items.find(i => i.status === 'soon');
-    if (soon) return { tone: 'warn', title: soon.label, text: statusText(soon), go: 'checks' };
-    return { tone: 'ok', title: 'All clear', text: 'Nothing needs you right now. Enjoy it.', go: null };
-  }
+
 
   const ledgerFor = p => RentUKLib.rentLedger(p && p.tenant, payments, p && p.id, todayIso());
   // One line about rent for a property: paid up, overdue, in credit or not tracked.
@@ -260,6 +248,29 @@ document.addEventListener('DOMContentLoaded', function() {
     if (L.arrears) return { tone: 'bad', title: `${money2(L.arrears)} overdue`, amount: money2(L.arrears), text: `Unpaid since ${ukDate(L.oldestUnpaid)}`, L };
     if (L.credit) return { tone: 'ok', title: 'Paid up', text: `${money2(L.credit)} in credit`, L };
     return { tone: 'ok', title: 'Paid up', text: L.nextDue ? `Next ${money(L.rent)} due ${ukDate(L.nextDue)}` : 'Nothing due', L };
+  }
+
+  // Everything that needs the landlord for one property, most urgent first (lower rank = sooner).
+  function attentionFor(p, showName) {
+    const out = [], today = todayIso(), many = !!showName;
+    const where = txt => many ? `${p.name} · ${txt}` : txt;
+    const add = (rank, tone, title, text, nav) => out.push({ rank, tone, title, text: where(text), propId: p.id, ...nav });
+    const rs = rentState(p);
+    if (rs.tone === 'bad') add(0, 'bad', `Rent overdue · ${rs.amount}`, `unpaid since ${ukDate(rs.L.oldestUnpaid)}`, { tab: 'money' });
+    RentUKLib.sortIssues(issues.filter(i => i.propertyId === p.id && i.status !== 'done' && i.priority === 'urgent'))
+      .forEach(i => add(1, 'bad', `Urgent repair: ${i.title}`, RentUKLib.ISSUE_STATUS[i.status], { act: 'repairs' }));
+    const r = RentUKLib.complianceScore(p.compliance, today);
+    r.items.filter(i => i.status === 'expired').forEach(i => add(2, 'bad', `${i.label} expired`, `on ${ukDate(i.expires)}`, { tab: 'checks' }));
+    r.items.filter(i => i.status === 'soon').forEach(i => add(3, 'warn', `${i.label} due`, `by ${ukDate(i.expires)}`, { tab: 'checks' }));
+    allDates(p).filter(d => !d.completed && d.dueDate && d.kind !== 'auto' && daysFrom(d.dueDate) <= 14)
+      .forEach(d => add(3, daysFrom(d.dueDate) < 0 ? 'bad' : 'warn', d.name, whenText(d.dueDate), { tab: 'checks' }));
+    if (p.tenant && p.tenant.leaseEnd && daysFrom(p.tenant.leaseEnd) >= 0 && daysFrom(p.tenant.leaseEnd) <= 60)
+      add(4, 'warn', 'Tenancy end date coming up', `${ukDate(p.tenant.leaseEnd)} · ${whenText(p.tenant.leaseEnd)}`, { act: 'tenant' });
+    const missing = r.items.filter(i => i.status === 'missing');
+    if (missing.length) add(5, 'warn', `${missing.length} ${missing.length === 1 ? 'check' : 'checks'} not recorded`, missing.map(i => i.label).slice(0, 2).join(', ') + (missing.length > 2 ? '…' : ''), { tab: 'checks' });
+    const routine = issues.filter(i => i.propertyId === p.id && i.status !== 'done' && i.priority !== 'urgent').length;
+    if (routine) add(6, 'info', `${routine} ${routine === 1 ? 'repair' : 'repairs'} in progress`, 'not urgent', { act: 'repairs' });
+    return out;
   }
 
   function greeting() {
@@ -300,44 +311,41 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>`;;
 
   const SCREENS = {
-    home(p) {
-      const r = RentUKLib.complianceScore(p.compliance, todayIso());
+    home(p, h) {
+      const all = homeScope === 'all' && properties.length > 1;
+      const scope = all ? properties : [p];
+      const items = scope.flatMap(q => attentionFor(q, all)).sort((x, y) => x.rank - y.rank);
+      const today = todayIso(), monthStart = today.slice(0, 8) + '01';
+      let due = 0, got = 0, open = 0, urgent = 0, upToDate = 0;
+      scope.forEach(q => {
+        const L = ledgerFor(q);
+        if (L.rent) due += RentUKLib.dueDates(L.from > monthStart ? L.from : monthStart, today.slice(0, 8) + '31', L.day).length * L.rent;
+        got += RentUKLib.received(payments, monthStart, today, q.id);
+        const iss = RentUKLib.issueSummary(issues, q.id, today); open += iss.open; urgent += iss.urgent;
+        if (RentUKLib.complianceScore(q.compliance, today).items.every(i => i.status === 'ok')) upToDate++;
+      });
+      const r = RentUKLib.complianceScore(p.compliance, today);
       const done = r.items.filter(i => i.status === 'ok').length;
-      const n = nextUp(p);
-      const t = p.tenant;
-      const rs = rentState(p);
-      const soon = allDates(p).filter(d => !d.completed && d.dueDate && daysFrom(d.dueDate) <= 30);
-      const first = soon[0];
+      const bad = items.filter(i => i.tone === 'bad').length;
+      const row = it => `
+        <button class="row attn-row tone-${it.tone}" data-action="attn" data-prop="${esc(it.propId)}" ${it.tab ? `data-go="${it.tab}"` : ''} ${it.act ? `data-act="${it.act}"` : ''}>
+          <span class="attn-dot" aria-hidden="true"></span>
+          <span class="row-text"><strong>${esc(it.title)}</strong><small>${esc(it.text)}</small></span>${ICON.chevron}
+        </button>`;
       return `
-        <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
-        <div class="bento">
-          <button class="tile t-next tone-${n.tone} tile-sky" ${n.action ? `data-action="${n.action}"` : n.go ? `data-tab="${n.go}"` : 'disabled'}>
-            ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass', n.tone === 'ok' ? '' : 'ichip-warn')}
-            <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
-          </button>
-          <button class="tile t-money tile-sky" ${rs.tone === 'none' ? 'data-action="tenant"' : 'data-tab="money"'}>
-            ${chip('pound', 'glass', rs.tone === 'bad' ? 'ichip-warn' : '')}
-            <span class="tile-body"><small>Rent</small><strong class="${rs.tone === 'bad' ? 't-bad' : ''}">${esc(rs.title)}</strong>
-              <span>${esc(rs.text)}</span></span>
-          </button>
-          <button class="tile t-tenant tile-sky" data-action="${t ? 'contact' : 'tenant'}">
-            <span class="avatar" aria-hidden="true">${t ? esc((t.name || '?').trim().charAt(0).toUpperCase()) : ICON.user}</span>
-            <span class="tile-body"><small>Your tenant</small><strong>${t ? esc(t.name) : 'Add your tenant'}</strong>
-              <span class="ways-mini" aria-hidden="true">${t ? `<i>${ICON.phone}</i><i>${ICON.chat}</i><i>${ICON.mail}</i>` : 'Name, contact, rent'}</span></span>
-          </button>
-          <button class="tile t-dates tile-sky" data-tab="checks">
-            ${chip('dates', 'glass', soon.length ? 'ichip-warn' : '')}
-            <span class="tile-body"><small>Next 30 days</small><strong class="t-big">${soon.length}</strong>
-              <span>${first ? esc(first.name) : 'Nothing due'}</span></span>
-          </button>
-          <button class="hero level-${r.level}" data-tab="checks">
-            ${scoreRing(r.score, r.level, 96)}
-            <span class="hero-text"><small>Compliance score</small>
-              <strong>${r.level === 'great' ? 'On top of it' : r.level === 'fair' ? 'Nearly there' : 'Needs attention'}</strong>
-              <span>${done} of ${r.items.length} legal checks done</span></span>
-            ${ICON.chevron}
-          </button>
+        <div class="hello"><h2>${greeting()}</h2>
+          <p>${items.length ? `${items.length} ${items.length === 1 ? 'thing needs' : 'things need'} you${bad ? `, ${bad} urgent` : ''}.` : 'Nothing needs you right now.'}</p></div>
+        ${properties.length > 1 ? `<div class="seg seg-2" role="group" aria-label="Show">
+          <button data-scope-home="one" class="${all ? '' : 'on'}" aria-pressed="${!all}">This property</button>
+          <button data-scope-home="all" class="${all ? 'on' : ''}" aria-pressed="${all}">All ${properties.length}</button></div>` : ''}
+        <div class="stats home-stats">
+          <button class="stat" data-tab="money"><small>Rent this month</small><strong>${money(got)}</strong><span>of ${money(due)} due</span></button>
+          <button class="stat" ${all ? 'data-tab="property"' : 'data-action="repairs"'}><small>Repairs</small><strong class="${urgent ? 't-bad' : ''}">${open} open</strong><span>${urgent ? urgent + ' urgent' : 'none urgent'}</span></button>
+          <button class="stat" data-tab="checks"><small>${all ? 'Checks done' : 'Checks'}</small><strong>${all ? `${upToDate} of ${scope.length}` : `${done} of ${r.items.length}`}</strong><span>${all ? 'properties' : 'recorded as done'}</span></button>
         </div>
+        <div class="list-head"><span>${all ? 'Needs you · all properties' : 'Needs you · ' + esc(p.name)}</span></div>
+        ${items.length ? pager('attn', items, h, properties.length > 1 ? 452 : 390, 74, row) : `
+          <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>Rent is up to date, no urgent repairs and every check is recorded. Enjoy it.</p></div></div>`}
         <p class="privacy-line tagline-line">${ICON.lock}<span>Your app. Your data. Your choice.</span></p>`;
     },
 
@@ -620,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (again) again.focus();
       return;
     }
+    if (t.dataset.scopeHome) { homeScope = t.dataset.scopeHome; delete pageAt.attn; render(); return; }
     if (t.dataset.money) { moneyView = t.dataset.money; render(); document.querySelector(`[data-money="${moneyView}"]`).focus(); return; }
     const a = t.dataset.action;
     if (!a) return;
@@ -643,6 +652,12 @@ document.addEventListener('DOMContentLoaded', function() {
       'tax-info': taxInfoSheet,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
+      attn: () => {
+        if (t.dataset.prop && t.dataset.prop !== String(p.id)) { currentPropertyId = t.dataset.prop; writeAll(store, { currentPropertyId: String(currentPropertyId) }); }
+        if (t.dataset.act === 'repairs') { screen = 'property'; propView = 'repairs'; render(true); }
+        else if (t.dataset.act === 'tenant') { render(); tenantSheet(getCurrentProperty()); }
+        else go(t.dataset.go || 'home');
+      },
       'add-payment': () => paymentSheet(p),
       repairs: () => { screen = 'property'; propView = 'repairs'; render(true); },
       'prop-back': () => { propView = 'main'; render(true); },

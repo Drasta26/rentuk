@@ -750,3 +750,19 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   background: rgba(255, 255, 255, 0.85); border: 1px solid var(--glass-line); color-scheme: light;
 }
 .field > .seg { margin-top: 2px; }
+
+/* ---- Iteration 4: action-first Home ---- */
+.screen-home { display: flex; flex-direction: column; gap: 12px; }
+.home-stats .stat { text-align: left; color: inherit; }
+.home-stats .stat span { color: var(--muted); font-size: 0.78rem; }
+.attn-row > svg:last-child { width: 18px; height: 18px; color: var(--muted); }
+.attn-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--brand); }
+.attn-row.tone-bad .attn-dot { background: var(--bad); box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15); }
+.attn-row.tone-warn .attn-dot { background: var(--warn); box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.15); }
+.attn-row.tone-bad strong { color: #991b1b; }
+.screen-home .pager { margin-top: 0; }
+.screen-home .hello h2 { font-size: 1.55rem; }
+.all-clear { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: var(--radius); }
+.all-clear strong { font-size: 1.1rem; }
+.all-clear p { color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+.screen-home .tagline-line { margin-top: auto; }
