@@ -291,3 +291,76 @@ test('validateBackup keeps a valid nation and the property a date belongs to', (
   assert.equal(r.data.aobReminders[0].propertyId, 'p1');
   assert.equal(r.data.aobReminders[1].propertyId, null);
 });
+
+const { dueDates, rentLedger, received } = require('../lib.js');
+
+test('dueDates gives one date a month and handles short months', () => {
+  assert.deepEqual(dueDates('2026-01-31', '2026-04-30', 31), ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30']);
+  assert.deepEqual(dueDates('2026-05-10', '2026-07-09', 1), ['2026-06-01', '2026-07-01']);
+  assert.deepEqual(dueDates('2026-05-10', '2026-05-01', 1), []);
+});
+
+test('rentLedger: paid up when every due rent is covered', () => {
+  const t = { rentAmount: '1000', rentDueDay: 1, rentFrom: '2026-09-01' };
+  const pays = [{ propertyId: 'p', date: '2026-09-01', amount: 1000 }, { propertyId: 'p', date: '2026-10-02', amount: 1000 }, { propertyId: 'p', date: '2026-11-01', amount: 1000 }];
+  const r = rentLedger(t, pays, 'p', '2026-11-18');
+  assert.equal(r.expected, 3000);
+  assert.equal(r.paid, 3000);
+  assert.equal(r.arrears, 0);
+  assert.equal(r.oldestUnpaid, null);
+  assert.equal(r.nextDue, '2026-12-01');
+});
+
+test('rentLedger: arrears and the oldest unpaid month', () => {
+  const t = { rentAmount: '800', rentDueDay: 5, rentFrom: '2026-08-01' };
+  const pays = [{ propertyId: 'p', date: '2026-08-05', amount: 800 }, { propertyId: 'p', date: '2026-09-10', amount: 400 }];
+  const r = rentLedger(t, pays, 'p', '2026-11-18');
+  assert.equal(r.expected, 3200);
+  assert.equal(r.paid, 1200);
+  assert.equal(r.arrears, 2000);
+  assert.equal(r.oldestUnpaid, '2026-09-05');
+  assert.equal(r.daysOverdue, 74);
+});
+
+test('rentLedger ignores other properties, payments before tracking starts, and stops at the lease end', () => {
+  const t = { rentAmount: '500', rentDueDay: 1, rentFrom: '2026-09-01', leaseEnd: '2026-10-15' };
+  const pays = [{ propertyId: 'other', date: '2026-09-01', amount: 500 }, { propertyId: 'p', date: '2026-08-01', amount: 500 }, { propertyId: 'p', date: '2026-09-01', amount: 1200 }];
+  const r = rentLedger(t, pays, 'p', '2026-11-18');
+  assert.equal(r.expected, 1000);
+  assert.equal(r.paid, 1200);
+  assert.equal(r.credit, 200);
+  assert.equal(r.nextDue, null);
+});
+
+test('rentLedger with no rent set expects nothing', () => {
+  const r = rentLedger({}, [], 'p', '2026-11-18');
+  assert.equal(r.expected, 0);
+  assert.equal(r.arrears, 0);
+  assert.equal(r.nextDue, null);
+});
+
+test('received sums actual payments in a date range', () => {
+  const pays = [{ propertyId: 'a', date: '2026-11-01', amount: 100 }, { propertyId: 'b', date: '2026-11-03', amount: 50.5 }, { propertyId: 'a', date: '2026-10-31', amount: 999 }];
+  assert.equal(received(pays, '2026-11-01', '2026-11-30'), 150.5);
+  assert.equal(received(pays, '2026-11-01', '2026-11-30', 'a'), 100);
+});
+
+test('validateBackup keeps valid rent payments and drops broken ones', () => {
+  const r = validateBackup({ payments: [
+    { id: 1, propertyId: 'p1', date: '2026-11-01', amount: '950.50', note: 'Transfer' },
+    { id: 2, propertyId: 'p1', date: 'not a date', amount: 10 },
+    { id: 3, propertyId: '<bad>', date: '2026-11-01', amount: 10 },
+    { id: 4, propertyId: 'p1', date: '2026-11-01', amount: -5 }] });
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.data.payments, [{ id: 1, propertyId: 'p1', date: '2026-11-01', amount: 950.5, note: 'Transfer' }]);
+  assert.equal(r.skipped, 3);
+});
+
+test('demo data includes made-up payments with one month missed at Station Road', () => {
+  const { demoData, rentLedger } = require('../lib.js');
+  const d = demoData('2026-11-18');
+  const st = d.properties.find(p => p.id === 'demo_station');
+  const oak = d.properties.find(p => p.id === 'demo_oak');
+  assert.ok(rentLedger(st.tenant, d.payments, st.id, '2026-11-18').arrears > 0);
+  assert.equal(rentLedger(oak.tenant, d.payments, oak.id, '2026-11-18').arrears, 0);
+});

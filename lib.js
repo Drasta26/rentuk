@@ -141,6 +141,66 @@
     };
   }
 
+  // ---- Rent tracking: what was due, what was actually received, and any arrears ----
+  // Only payments the landlord records count as received. Nothing is guessed.
+  function monthDue(y, m, day) {
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m, Math.min(day, last))).toISOString().slice(0, 10);
+  }
+  // Monthly due dates on `day` from `from` (inclusive) to `to` (inclusive).
+  function dueDates(from, to, day) {
+    if (!date(from) || !date(to) || from > to) return [];
+    const out = [];
+    let y = Number(from.slice(0, 4)), m = Number(from.slice(5, 7)) - 1;
+    for (let i = 0; i < 600; i++) {
+      const d = monthDue(y, m, day);
+      if (d > to) break;
+      if (d >= from) out.push(d);
+      m++; if (m > 11) { m = 0; y++; }
+    }
+    return out;
+  }
+  function dueDayOf(t) {
+    const n = parseInt(t && t.rentDueDay, 10);
+    if (n >= 1 && n <= 31) return n;
+    return date(t && t.leaseStart) ? Number(t.leaseStart.slice(8)) : 1;
+  }
+  // Where tracking starts: the date the landlord chose, else the lease start, else today.
+  function rentFromOf(t, todayIso) {
+    return date(t && t.rentFrom) || date(t && t.leaseStart) || todayIso;
+  }
+  function rentLedger(tenant, payments, propertyId, todayIso) {
+    const t = tenant || {};
+    const rent = parseFloat(t.rentAmount) || 0;
+    const from = rentFromOf(t, todayIso);
+    const day = dueDayOf(t);
+    const ended = date(t.leaseEnd) && t.leaseEnd < todayIso ? t.leaseEnd : null;
+    const until = ended || todayIso;
+    const dues = rent > 0 ? dueDates(from, until, day) : [];
+    const paidList = (payments || []).filter(x => x && x.propertyId === propertyId && date(x.date) && x.date >= from)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const paid = Math.round(paidList.reduce((s, x) => s + (Number(x.amount) || 0), 0) * 100) / 100;
+    const expected = Math.round(dues.length * rent * 100) / 100;
+    const balance = Math.round((expected - paid) * 100) / 100;
+    // Oldest due date not yet covered by payments (payments pay off the oldest rent first).
+    let covered = paid, oldestUnpaid = null;
+    for (const d of dues) { if (covered + 0.005 >= rent) covered -= rent; else { oldestUnpaid = d; break; } }
+    const nextDue = rent > 0 && !ended ? (dueDates(addDays(todayIso, 1), addDays(todayIso, 62), day)[0] || null) : null;
+    const lastPayment = paidList.length ? paidList[paidList.length - 1] : null;
+    return {
+      rent, from, day, expected, paid, balance,
+      arrears: balance > 0.004 ? balance : 0,
+      credit: balance < -0.004 ? -balance : 0,
+      oldestUnpaid, daysOverdue: oldestUnpaid ? daysBetween(oldestUnpaid, todayIso) : 0,
+      nextDue, lastPayment, dueCount: dues.length
+    };
+  }
+  // Money actually received between two dates (inclusive), for one property or all.
+  function received(payments, fromIso, toIso, propertyId) {
+    return Math.round((payments || []).filter(x => x && date(x.date) && x.date >= fromIso && x.date <= toIso &&
+      (propertyId == null || x.propertyId === propertyId)).reduce((s, x) => s + (Number(x.amount) || 0), 0) * 100) / 100;
+  }
+
   // ---- Calendar export (iCalendar, RFC 5545) ----
   function icsText(v) {
     return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
@@ -173,7 +233,8 @@
     const ago = n => addDays(todayIso, -n);
     const tenant = (name, rent, startAgo) => ({
       name, contact: '07700 900' + String(100 + name.length) + ', ' + name.split(' ')[0].toLowerCase() + '@example.com',
-      leaseStart: ago(startAgo), leaseEnd: addDays(ago(startAgo), 365), rentAmount: String(rent)
+      leaseStart: ago(startAgo), leaseEnd: addDays(ago(startAgo), 365), rentAmount: String(rent),
+      rentDueDay: 1, rentFrom: ago(Math.min(startAgo, 95))
     });
     const properties = [
       { id: 'demo_maple', name: 'Maple Court flat (demo)', address: '1 Example Road, Sampletown', nation: 'england',
@@ -201,7 +262,16 @@
       { id: 4, name: 'Insurance Renewal', dueDate: addDays(todayIso, 25), type: 'insurance', completed: false, propertyId: null }
     ];
     const aobReminders = [{ id: 9100, name: 'Check smoke alarms', dueDate: addDays(todayIso, 9), completed: false, propertyId: 'demo_oak' }];
-    return { properties, expenses, reminders, aobReminders, currentPropertyId: 'demo_oak' };
+    // Made-up rent payments: Maple and Oak paid in full, Station Road missed the latest month.
+    const payments = [];
+    properties.forEach((p, pi) => {
+      const dues = dueDates(p.tenant.rentFrom, todayIso, 1);
+      dues.forEach((d, i) => {
+        if (p.id === 'demo_station' && i === dues.length - 1) return;
+        payments.push({ id: 9200 + pi * 20 + i, propertyId: p.id, date: addDays(d, pi), amount: Number(p.tenant.rentAmount), note: 'Bank transfer' });
+      });
+    });
+    return { properties, expenses, reminders, aobReminders, payments, currentPropertyId: 'demo_oak' };
   }
 
   function cleanCompliance(c) {
@@ -217,10 +287,13 @@
   function cleanTenant(t) {
     if (!t || typeof t !== 'object') return null;
     const rent = parseFloat(t.rentAmount);
+    const day = parseInt(t.rentDueDay, 10);
     return {
       name: text(t.name), contact: text(t.contact),
       leaseStart: date(t.leaseStart), leaseEnd: date(t.leaseEnd),
-      rentAmount: Number.isFinite(rent) && rent >= 0 ? String(rent) : ''
+      rentAmount: Number.isFinite(rent) && rent >= 0 ? String(rent) : '',
+      ...(day >= 1 && day <= 31 ? { rentDueDay: day } : {}),
+      ...(date(t.rentFrom) ? { rentFrom: t.rentFrom } : {})
     };
   }
 
@@ -231,12 +304,12 @@
       return { ok: false, error: 'Backup file is not a RentUK backup.' };
     }
     const list = (k) => (Array.isArray(raw[k]) ? raw[k].filter(x => x && typeof x === 'object' && isSafeId(x.id)) : null);
-    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders');
-    if (!props && !exps && !rems && !aobs) {
+    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders'), pays = list('payments');
+    if (!props && !exps && !rems && !aobs && !pays) {
       return { ok: false, error: 'Backup file has no RentUK data.' };
     }
     const data = {};
-    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders']
+    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders', 'payments']
       .reduce((n, k) => n + (Array.isArray(raw[k]) ? raw[k].length : 0), 0);
     if (props) data.properties = props.map(p => ({
       id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address), nation: nationOf(p),
@@ -254,8 +327,11 @@
     if (aobs) data.aobReminders = aobs.map(a => ({
       id: a.id, name: text(a.name), dueDate: date(a.dueDate), completed: a.completed === true, propertyId: idOrNull(a.propertyId)
     }));
+    if (pays) data.payments = pays
+      .map(x => ({ id: x.id, propertyId: idOrNull(x.propertyId), date: date(x.date), amount: parseFloat(x.amount), note: text(x.note) }))
+      .filter(x => Number.isFinite(x.amount) && x.amount >= 0 && x.date && x.propertyId);
     data.currentPropertyId = idOrNull(raw.currentPropertyId);
-    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders']) skipped -= data[k] ? data[k].length : 0;
+    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders', 'payments']) skipped -= data[k] ? data[k].length : 0;
     return { ok: true, data, skipped };
   }
 
@@ -290,7 +366,7 @@
   }
 
   // Every key RentUK keeps in this browser. Other apps on the same site keep their own keys, so only these are cleared.
-  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
+  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
 
   // Remove all RentUK keys; returns { ok } instead of throwing when storage is blocked.
   function clearAll(storage, keys = DATA_KEYS) {
@@ -312,7 +388,7 @@
   }
 
   // True when another tab erased RentUK data, so this tab must reload instead of writing its stale copy back.
-  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'currentPropertyId'];
+  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'currentPropertyId'];
   function erasedElsewhere(e, storage) {
     if (!e || e.storageArea !== storage) return false;
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
@@ -327,7 +403,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

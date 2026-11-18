@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // AOB reminders (dynamic)
   let aobReminders = asList(readJson(store, 'aobReminders', []), []);
+  // Rent payments the landlord has recorded (actual money received).
+  let payments = asList(readJson(store, 'payments', []), []);
 
   // Get current property
   function getCurrentProperty() {
@@ -135,7 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
     { id: 'property', label: 'Property' }
   ];
   let screen = 'home';
-  let moneyView = 'overview';
+  let moneyView = 'rent';
   const pageAt = {};
 
   function loadMainUI() {
@@ -231,6 +233,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function nextUp(p) {
+    const rs = rentState(p);
+    if (rs.tone === 'bad') return { tone: 'bad', title: 'Rent overdue', text: `${rs.title}. ${rs.text}.`, go: 'money' };
     const r = RentUKLib.complianceScore(p.compliance, todayIso());
     const bad = r.items.find(i => i.status === 'expired') || r.items.find(i => i.status === 'missing');
     if (bad) return { tone: 'bad', title: bad.label, text: bad.status === 'expired' ? 'Expired. Renew it now.' : 'Not set yet. Takes a few seconds.', go: 'checks' };
@@ -239,6 +243,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const soon = r.items.find(i => i.status === 'soon');
     if (soon) return { tone: 'warn', title: soon.label, text: statusText(soon), go: 'checks' };
     return { tone: 'ok', title: 'All clear', text: 'Nothing needs you right now. Enjoy it.', go: null };
+  }
+
+  const ledgerFor = p => RentUKLib.rentLedger(p && p.tenant, payments, p && p.id, todayIso());
+  // One line about rent for a property: paid up, overdue, in credit or not tracked.
+  function rentState(p) {
+    const t = p && p.tenant;
+    if (!t || !(parseFloat(t.rentAmount) > 0)) return { tone: 'none', title: 'Not tracked', text: 'Add the rent to start' };
+    const L = ledgerFor(p);
+    if (L.arrears) return { tone: 'bad', title: `${money2(L.arrears)} overdue`, amount: money2(L.arrears), text: `Unpaid since ${ukDate(L.oldestUnpaid)}`, L };
+    if (L.credit) return { tone: 'ok', title: 'Paid up', text: `${money2(L.credit)} in credit`, L };
+    return { tone: 'ok', title: 'Paid up', text: L.nextDue ? `Next ${money(L.rent)} due ${ukDate(L.nextDue)}` : 'Nothing due', L };
   }
 
   function greeting() {
@@ -284,8 +299,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const done = r.items.filter(i => i.status === 'ok').length;
       const n = nextUp(p);
       const t = p.tenant;
-      const est = RentUKLib.rentalEstimate([p], expenses, RentUKLib.taxYearStart(todayIso()));
-      const rent = t ? parseFloat(t.rentAmount) || 0 : 0;
+      const rs = rentState(p);
       const soon = allDates(p).filter(d => !d.completed && d.dueDate && daysFrom(d.dueDate) <= 30);
       const first = soon[0];
       return `
@@ -295,10 +309,10 @@ document.addEventListener('DOMContentLoaded', function() {
             ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass', n.tone === 'ok' ? '' : 'ichip-warn')}
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           </button>
-          <button class="tile t-money tile-sky" data-tab="money">
-            ${chip('pound', 'glass')}
-            <span class="tile-body"><small>Profit this year</small><strong class="t-big">${money(est.income - est.costs)}</strong>
-              <span>${rent ? money(rent) + ' rent a month' : 'Add rent to see more'}</span></span>
+          <button class="tile t-money tile-sky" ${rs.tone === 'none' ? 'data-action="tenant"' : 'data-tab="money"'}>
+            ${chip('pound', 'glass', rs.tone === 'bad' ? 'ichip-warn' : '')}
+            <span class="tile-body"><small>Rent</small><strong class="${rs.tone === 'bad' ? 't-bad' : ''}">${esc(rs.title)}</strong>
+              <span>${esc(rs.text)}</span></span>
           </button>
           <button class="tile t-tenant tile-sky" data-action="${t ? 'contact' : 'tenant'}">
             <span class="avatar" aria-hidden="true">${t ? esc((t.name || '?').trim().charAt(0).toUpperCase()) : ICON.user}</span>
@@ -350,16 +364,17 @@ document.addEventListener('DOMContentLoaded', function() {
     money(p, h) {
       const seg = `
         <div class="seg" role="group" aria-label="Money view">
-          ${[['overview', 'Overview'], ['expenses', 'Costs'], ['tax', 'Tax']].map(([id, label]) =>
+          ${[['rent', 'Rent'], ['expenses', 'Costs'], ['tax', 'Tax']].map(([id, label]) =>
             `<button data-money="${id}" aria-pressed="${moneyView === id}" class="${moneyView === id ? 'on' : ''}">${label}</button>`).join('')}
         </div>`;
       const start = RentUKLib.taxYearStart(todayIso());
       if (moneyView === 'tax') {
         const est = RentUKLib.rentalEstimate(properties, expenses, start);
         return `${seg}
-          <h2 class="sub-h">Tax year ${esc(est.taxYear.label)} · all properties</h2>
+          <h2 class="sub-h">Tax year ${esc(est.taxYear.label)} · all properties · estimate</h2>
+          <p class="fine">Rent received so far (recorded): <strong>${money2(RentUKLib.received(payments, est.taxYear.start, todayIso()))}</strong>. The estimate below projects the full year from rent and lease dates.</p>
           <div class="stats">
-            <div class="stat"><small>Rent</small><strong>${money(est.income)}</strong></div>
+            <div class="stat"><small>Rent (full year)</small><strong>${money(est.income)}</strong></div>
             <div class="stat"><small>${est.useAllowance ? 'Allowance' : 'Costs'}</small><strong>−${money(est.useAllowance ? Math.min(1000, est.income) : est.costs)}</strong></div>
             <div class="stat stat-hi"><small>Profit</small><strong>${money(est.profit)}</strong></div>
           </div>
@@ -377,18 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${seg}${FAB_COST}
           ${list.length ? pager('expenses', list, h, 310, 66, costRow) : '<p class="empty">No costs yet. Add repairs, insurance or fees and they count towards your tax estimate.</p>'}`;
       }
-      const est = RentUKLib.rentalEstimate([p], expenses, start);
-      const rent = p.tenant ? parseFloat(p.tenant.rentAmount) || 0 : 0;
-      return `${seg}
-        <h2 class="sub-h">${esc(p.name)} · tax year ${esc(est.taxYear.label)}</h2>
-        <div class="big-stat"><small>Profit so far this year (projected)</small><strong>${money(est.income - est.costs)}</strong></div>
-        <div class="stats">
-          <div class="stat"><small>Monthly rent</small><strong>${money(rent)}</strong></div>
-          <div class="stat"><small>Rent this year</small><strong>${money(est.income)}</strong></div>
-          <div class="stat"><small>Costs</small><strong>${money(est.costs)}</strong></div>
-        </div>
-        ${FAB_COST}
-        ${recentCosts(p, h)}`;
+      return `${seg}${rentView(p, h, start)}`;
     },
 
     property(p) {
@@ -427,14 +431,75 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   };
 
-  // Fill spare space on Money with the latest costs, only as many as fit.
-  function recentCosts(p, h) {
-    const fit = Math.floor((h - 540) / 66);
-    const list = expenses.filter(e => e.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
-    if (fit < 1 || !list.length) return '';
-    return `<div class="list-head"><span>Latest costs</span>${list.length > fit ? '<button class="link-btn" data-money="expenses">See all</button>' : ''}</div>
-      <div class="list">${list.slice(0, fit).map(costRow).join('')}</div>`;
+  // ---- Rent: actual payments against what was due. Nothing is assumed paid. ----
+  function rentView(p, h, start) {
+    const t = p.tenant;
+    if (!t || !(parseFloat(t.rentAmount) > 0)) return `
+      <div class="empty-card glass">
+        ${chip('pound', 'indigo')}
+        <h2>Track rent for ${esc(p.name)}</h2>
+        <p>Add the monthly rent and the day it is due. Then record each payment as it arrives and RentUK shows anything overdue.</p>
+        <button class="btn" data-action="tenant">Add rent details</button>
+      </div>`;
+    const rs = rentState(p), L = rs.L;
+    const today = todayIso(), monthStart = today.slice(0, 8) + '01';
+    const thisMonthDue = RentUKLib.dueDates(L.from > monthStart ? L.from : monthStart, today.slice(0, 8) + '31', L.day).length * L.rent;
+    const gotMonth = RentUKLib.received(payments, monthStart, today, p.id);
+    const gotYear = RentUKLib.received(payments, `${start}-04-06`, today, p.id);
+    const costsYear = expenses.filter(e => e.propertyId === p.id && e.date >= `${start}-04-06` && e.date <= today).reduce((n, e) => n + (Number(e.amount) || 0), 0);
+    const list = payments.filter(x => x.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    return `
+      <div class="rent-card glass tone-${rs.tone}">
+        <div class="grow">
+          <small>${rs.tone === 'bad' ? 'Rent overdue' : 'Rent'}</small>
+          <strong>${esc(rs.amount || rs.title)}</strong>
+          <span>${esc(rs.text)}</span>
+        </div>
+        <button class="btn" data-action="add-payment">${ICON.plus}Record payment</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><small>Due this month</small><strong>${money2(thisMonthDue)}</strong></div>
+        <div class="stat"><small>Received this month</small><strong>${money2(gotMonth)}</strong></div>
+        <div class="stat"><small>Profit this tax year</small><strong>${money2(gotYear - costsYear)}</strong></div>
+      </div>
+      <p class="fine">Actual figures: payments you’ve recorded minus costs you’ve added. Tracking from ${esc(ukDate(L.from))}.</p>
+      ${list.length ? pager('payments', list, h, 420, 66, paymentRow) : '<p class="empty">No payments recorded yet.</p>'}`;
   }
+  const paymentRow = x => `
+    <button class="row" data-action="payment" data-id="${esc(x.id)}">
+      ${chip('pound', 'sky', 'ichip-sm')}
+      <span class="row-text"><strong>${esc(ukDate(x.date))}</strong><small>${esc(x.note || 'Rent payment')}</small></span>
+      <span class="amount amount-in">+${money2(x.amount)}</span>
+    </button>`;
+
+  function paymentSheet(p, existing) {
+    if (!p) return;
+    const rent = parseFloat(p.tenant && p.tenant.rentAmount) || '';
+    openSheet(existing ? 'Rent payment' : 'Record a payment', `
+      <div class="field-row">
+        ${field('pay-amount', 'Amount (£)', 'number', existing ? existing.amount : rent, 'inputmode="decimal" step="0.01" min="0"')}
+        ${field('pay-date', 'Date received', 'date', existing ? existing.date : todayIso(), `max="${todayIso()}"`)}
+      </div>
+      ${field('pay-note', 'Note (optional)', 'text', existing ? existing.note : '', 'maxlength="80" placeholder="Bank transfer" autocomplete="off"')}
+      <p class="fine">Record money that has actually arrived. Partial payments are fine.</p>
+      <div class="sheet-actions">
+        ${existing ? '<button class="btn btn-quiet" id="pay-del">Delete</button>' : ''}
+        <button class="btn" id="pay-save">${existing ? 'Save changes' : 'Record payment'}</button>
+      </div>`, s => {
+      if (existing) s.querySelector('#pay-del').onclick = () => { payments = payments.filter(x => x !== existing); saveData(); closeSheet(); render(); };
+      s.querySelector('#pay-save').onclick = () => {
+        const amount = Math.round(parseFloat(s.querySelector('#pay-amount').value) * 100) / 100;
+        const date = s.querySelector('#pay-date').value;
+        const note = s.querySelector('#pay-note').value.trim();
+        if (!(amount > 0) || !date) return sheetError(s, 'Add the amount and the date it arrived.');
+        if (date > todayIso()) return sheetError(s, 'The date can’t be in the future.');
+        if (existing) Object.assign(existing, { amount, date, note });
+        else payments.push({ id: 'pay_' + Date.now(), propertyId: p.id, date, amount, note });
+        saveData(); closeSheet(); screen = 'money'; moneyView = 'rent'; render();
+      };
+    });
+  }
+
   const costRow = e => `
     <button class="row" data-action="expense" data-id="${esc(e.id)}">
       ${chip(Object.hasOwn(CATEGORY, e.category) ? CATEGORY[e.category][0] : 'sparkle', 'sky', 'ichip-sm')}
@@ -444,7 +509,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const FAB_COST = `<button class="fab" data-action="add-expense" aria-label="Add a cost">${ICON.plus}</button>`;
   const CATEGORY = { maintenance: ['wrench', 'Maintenance'], repairs: ['hammer', 'Repairs'], insurance: ['checks', 'Insurance'], utilities: ['bolt', 'Utilities'], other: ['sparkle', 'Other'] };
-  const money2 = n => '£' + Number(n || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money2 = n => (Number(n) < 0 ? '−' : '') + '£' + Math.abs(Number(n || 0)).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   function onAppClick(e) {
     const t = e.target.closest('button, a');
@@ -481,6 +546,8 @@ document.addEventListener('DOMContentLoaded', function() {
       'tax-info': taxInfoSheet,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
+      'add-payment': () => paymentSheet(p),
+      payment: () => paymentSheet(p, payments.find(x => String(x.id) === t.dataset.id)),
       expense: () => expenseSheet(p, expenses.find(x => String(x.id) === t.dataset.id)),
       'add-date': () => dateSheet(),
       idea: () => dateSheet(null, null, t.dataset.name),
@@ -593,7 +660,11 @@ document.addEventListener('DOMContentLoaded', function() {
         ${field('t-start', 'Lease start', 'date', t.leaseStart)}
         ${field('t-end', 'Lease end', 'date', t.leaseEnd)}
       </div>
-      ${field('t-rent', 'Monthly rent (£)', 'number', t.rentAmount, 'inputmode="decimal" min="0"')}
+      <div class="field-row">
+        ${field('t-rent', 'Monthly rent (£)', 'number', t.rentAmount, 'inputmode="decimal" min="0"')}
+        ${field('t-due', 'Due on day', 'number', t.rentDueDay || (t.leaseStart ? Number(t.leaseStart.slice(8)) : ''), 'inputmode="numeric" min="1" max="31" placeholder="1"')}
+      </div>
+      ${field('t-from', 'Track rent from', 'date', t.rentFrom || t.leaseStart || todayIso())}
       <div class="sheet-actions">
         ${p.tenant ? '<button class="btn btn-quiet" id="t-del">Remove tenant</button>' : ''}
         <button class="btn" id="t-save">Save</button>
@@ -602,8 +673,11 @@ document.addEventListener('DOMContentLoaded', function() {
       s.querySelector('#t-save').onclick = () => {
         const name = s.querySelector('#t-name').value.trim();
         if (!name) return sheetError(s, 'Add the tenant’s name.');
-        p.tenant = { name, contact: s.querySelector('#t-contact').value.trim(), leaseStart: s.querySelector('#t-start').value,
-          leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(s.querySelector('#t-rent').value) || 0 };
+        const due = parseInt(s.querySelector('#t-due').value, 10);
+        if (s.querySelector('#t-due').value && !(due >= 1 && due <= 31)) return sheetError(s, 'The due day must be between 1 and 31.');
+        p.tenant = { ...t, name, contact: s.querySelector('#t-contact').value.trim(), leaseStart: s.querySelector('#t-start').value,
+          leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(s.querySelector('#t-rent').value) || 0,
+          rentDueDay: due || undefined, rentFrom: s.querySelector('#t-from').value || undefined };
         saveData(); closeSheet(); render();
       };
     });
@@ -695,6 +769,7 @@ document.addEventListener('DOMContentLoaded', function() {
         properties = properties.filter(x => x !== p);
         expenses = expenses.filter(e => e.propertyId !== p.id);
         aobReminders = aobReminders.filter(a => a.propertyId !== p.id);
+        payments = payments.filter(x => x.propertyId !== p.id);
         currentPropertyId = properties.length ? properties[0].id : null;
         Object.keys(pageAt).forEach(k => delete pageAt[k]);
         saveData(); closeSheet(); screen = 'home'; render(true);
@@ -1003,12 +1078,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       { id: 6, name: 'Deposit Protection', dueDate: '', type: 'deposit', completed: false, propertyId: null }
     ];
     aobReminders = asList(readJson(store, 'aobReminders', []), []);
+    payments = asList(readJson(store, 'payments', []), []);
   }
 
   // Save local data
   function saveLocalData() {
     const result = writeAll(store, {
-      expenses, properties, reminders, aobReminders,
+      expenses, properties, reminders, aobReminders, payments,
       currentPropertyId: currentPropertyId === null ? '' : String(currentPropertyId)
     });
     if (!result.ok && !storageWarned) {
@@ -1029,7 +1105,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
 
   // Export data functionality
   function exportData() {
-    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders }, null, 2);
+    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
 
     const exportFileDefaultName = `rentuk-backup-${new Date().toISOString().slice(0,10)}.json`;
@@ -1070,6 +1146,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         currentPropertyId = importedData.currentPropertyId || currentPropertyId;
         reminders = importedData.reminders || reminders;
         aobReminders = importedData.aobReminders || aobReminders;
+        payments = importedData.payments || payments;
         saveData();
         showCustomAlert(result.skipped > 0
           ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
@@ -1102,7 +1179,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         const d = result.data;
         const count = (list, one, many) => list ? `${list.length} ${list.length === 1 ? one : many}` : null;
         const incoming = [count(d.properties, 'property', 'properties'), count(d.expenses, 'cost', 'costs'),
-          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates')].filter(Boolean).join(', ');
+          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates'), count(d.payments, 'rent payment', 'rent payments')].filter(Boolean).join(', ');
         openSheet('Replace your data?', `
           <p class="story">This file holds ${esc(incoming)}. Restoring replaces what you have now (${properties.length} ${properties.length === 1 ? 'property' : 'properties'}, ${expenses.length} costs). Save a backup first if you may want it back.</p>
           <div class="sheet-actions"><button class="btn btn-quiet" id="imp-no">Cancel</button><button class="btn" id="imp-yes">Replace my data</button></div>`, s => {
@@ -1214,7 +1291,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
 
-  const money = n => '£' + Math.round(n).toLocaleString('en-GB');
+  const money = n => (Number(n) < 0 ? '−' : '') + '£' + Math.abs(Math.round(Number(n) || 0)).toLocaleString('en-GB');
 
   // ---- Calendar export ----
   function exportCalendar() {
