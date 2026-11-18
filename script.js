@@ -399,7 +399,10 @@ document.addEventListener('DOMContentLoaded', function() {
           ${FAB_COST}<div class="note tone-${est.mtd.due ? 'warn' : 'ok'}">${est.mtd.due
             ? `Making Tax Digital likely applies from ${esc(est.mtd.from)}. Rent is over ${money(est.mtd.over)}.`
             : 'Making Tax Digital is not triggered by your rent alone.'}</div>
-          <button class="link-btn" data-action="tax-info">${ICON.info}How this is worked out</button>`;
+          <div class="btn-row">
+            <button class="link-btn" data-action="tax-info">${ICON.info}How this is worked out</button>
+            <button class="link-btn" data-action="export-csv">${ICON.down}Export for accountant</button>
+          </div>`;
       }
       if (moneyView === 'expenses') {
         const list = expenses.filter(e => e.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
@@ -650,6 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
       resources: resourcesSheet,
       ask: () => openChat(p),
       'tax-info': taxInfoSheet,
+      'export-csv': exportLedgerCsv,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
       attn: () => {
@@ -1411,6 +1415,20 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
 
 
   const money = n => (Number(n) < 0 ? '−' : '') + '£' + Math.abs(Math.round(Number(n) || 0)).toLocaleString('en-GB');
+
+  // ---- Accountant export: every rent payment and cost in the current tax year, all properties ----
+  function exportLedgerCsv() {
+    const ty = RentUKLib.taxYear(RentUKLib.taxYearStart(todayIso()));
+    const rows = RentUKLib.ledgerRows(properties, payments, expenses, ty.start, ty.end);
+    if (rows.length < 2) { showCustomAlert('Nothing to export yet. Record rent payments or add costs for this tax year first.', 'Nothing yet'); return; }
+    const blob = new Blob([RentUKLib.buildCsv(rows)], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `rentuk-${ty.label.replace('/', '-')}-income-and-costs.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showCustomAlert(`Saved ${rows.length - 1} lines for tax year ${ty.label} (rent you recorded as received, and costs). Open it in Excel, Numbers or Google Sheets, or send it to your accountant.`, 'Export ready');
+  }
 
   // ---- Calendar export ----
   function exportCalendar() {

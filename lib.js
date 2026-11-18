@@ -228,6 +228,26 @@
     };
   }
 
+  // ---- CSV for an accountant. Cells that start like a formula are made literal (spreadsheet formula injection). ----
+  function csvCell(v) {
+    let t = v === null || v === undefined ? '' : String(v);
+    if (/^[=+\-@\t\r]/.test(t) && !/^-?\d+(\.\d+)?$/.test(t)) t = "'" + t;
+    return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }
+  function buildCsv(rows) {
+    return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n';
+  }
+  // One line per rent payment and cost in [from, to], oldest first. Money in is positive, money out negative.
+  function ledgerRows(properties, payments, expenses, fromIso, toIso) {
+    const name = id => { const p = (properties || []).find(x => x.id === id); return p ? p.name : 'Unknown property'; };
+    const inRange = d => date(d) && d >= fromIso && d <= toIso;
+    const rows = [
+      ...(payments || []).filter(x => inRange(x.date)).map(x => [x.date, name(x.propertyId), 'Rent received', 'Rent', x.note || 'Rent payment', (Number(x.amount) || 0).toFixed(2)]),
+      ...(expenses || []).filter(e => inRange(e.date)).map(e => [e.date, name(e.propertyId), 'Cost', e.category || 'other', e.description || '', (-(Number(e.amount) || 0)).toFixed(2)])
+    ].sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+    return [['Date', 'Property', 'Type', 'Category', 'Description', 'Amount (GBP)'], ...rows];
+  }
+
   // ---- Calendar export (iCalendar, RFC 5545) ----
   function icsText(v) {
     return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
@@ -437,7 +457,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

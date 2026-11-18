@@ -766,3 +766,6 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .all-clear strong { font-size: 1.1rem; }
 .all-clear p { color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
 .screen-home .tagline-line { margin-top: auto; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 4px 16px; }
