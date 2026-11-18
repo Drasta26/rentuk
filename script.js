@@ -78,62 +78,6 @@ document.addEventListener('DOMContentLoaded', function() {
       s => { s.querySelector('#alert-ok').onclick = closeSheet; });
   }
 
-  // Show feedback form for thumbs down
-  function showFeedbackForm() {
-    // Remove existing alert if any
-    const existingAlert = document.getElementById('custom-alert');
-    if (existingAlert) {
-      existingAlert.remove();
-    }
-
-    const alertDiv = document.createElement('div');
-    alertDiv.id = 'custom-alert';
-    alertDiv.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      padding: 20px;
-      z-index: 10000;
-      max-width: 400px;
-      text-align: center;
-    `;
-
-    alertDiv.innerHTML = `
-      <h3 style="color: #4f46e5; margin-bottom: 12px;">RentUK says</h3>
-      <p style="margin-bottom: 10px; color: #1e293b;">We're sorry to hear that. What could we improve?</p>
-      <textarea id="feedback-text" placeholder="Please share your feedback..." 
-                 style="width: 100%; height: 80px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 10px;"></textarea>
-      <div style="display: flex; gap: 10px; justify-content: center;">
-        <button id="fb-submit" 
-                style="background: #4f46e5; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
-          Submit
-        </button>
-        <button class="alert-cancel" 
-                style="background: #ef4444; color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;">
-          Cancel
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(alertDiv);
-    alertDiv.querySelector('#fb-submit').addEventListener('click', submitFeedback);
-    alertDiv.querySelector('.alert-cancel').addEventListener('click', () => alertDiv.remove());
-    makeDialog(alertDiv);
-  }
-
-  function submitFeedback() {
-    const feedback = document.getElementById('feedback-text').value.trim();
-    if (feedback) {
-      showCustomAlert('Thank you for your feedback!', 'RentUK says');
-    } else {
-      showCustomAlert('Thank you!', 'RentUK says');
-    }
-  }
-
   // Start the app (local-only, no sign-in)
   function initApp() {
     loadLocalData();
@@ -178,13 +122,17 @@ document.addEventListener('DOMContentLoaded', function() {
     video: svg('<rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5l5-3v9l-5-3z"/>'),
     mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
     send: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
+    pencil: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
+    pin: svg('<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>'),
+    menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
+    property: svg('<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/>'),
     thumb: svg('<path d="M7 11v9H4v-9z"/><path d="M7 11l4-7a2 2 0 0 1 3 2l-1 4h5a2 2 0 0 1 2 2.3l-1.2 6A2 2 0 0 1 16.8 20H7"/>')
   };
   // A small rounded square holding one icon; tone is sky, indigo, deep or glass.
   const chip = (name, tone = 'indigo', extra = '') => `<span class="ichip ichip-${tone} ${extra}" aria-hidden="true">${ICON[name]}</span>`;
   const TABS = [
     { id: 'home', label: 'Home' }, { id: 'checks', label: 'Checks' }, { id: 'money', label: 'Money' },
-    { id: 'more', label: 'More' }
+    { id: 'property', label: 'Property' }
   ];
   let screen = 'home';
   let moneyView = 'overview';
@@ -197,6 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <button class="prop-chip" data-action="properties" aria-haspopup="dialog">
           <span id="prop-chip-name"></span>${ICON.chevron}
         </button>
+        <button class="icon-btn menu-btn" data-action="menu" aria-haspopup="dialog" aria-label="Menu: your data, help and settings">${ICON.menu}</button>
       </header>
       <main id="main" class="screen" tabindex="-1" aria-live="polite"></main>
       <nav class="tabbar" aria-label="Sections">
@@ -228,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('prop-chip-name').textContent = p ? p.name : 'No property yet';
     document.querySelector('.tabbar').hidden = !p;
     document.querySelector('.prop-chip').hidden = !p;
+    document.querySelector('.menu-btn').hidden = !p;
     main.className = 'screen screen-' + (p ? screen : 'welcome');
     main.innerHTML = p ? SCREENS[screen](p, main.clientHeight) : welcomeScreen();
     document.querySelectorAll('.tabbar button').forEach(b => {
@@ -268,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Your own dates plus ones RentUK already knows: certificate renewals and the lease end.
   function allDates(p) {
-    const own = [...reminders.map(r => ({ ...r, kind: 'std' })), ...aobReminders.filter(a => a.name).map(a => ({ ...a, kind: 'aob' }))];
+    const own = [...reminders.map(r => ({ ...r, kind: 'std' })), ...RentUKLib.datesFor(aobReminders, p && p.id).filter(a => a.name).map(a => ({ ...a, kind: 'aob' }))];
     const auto = [];
     if (p) {
       RentUKLib.complianceScore(p.compliance, todayIso()).items.filter(i => i.expires)
@@ -441,21 +391,38 @@ document.addEventListener('DOMContentLoaded', function() {
         ${recentCosts(p, h)}`;
     },
 
-    more() {
-      const item = (action, icon, title, text) =>
-        `<button class="tile tile-wide tile-sky" data-action="${action}">${chip(icon, 'glass')}<span><strong>${title}</strong><small>${text}</small></span></button>`;
-      const wide = (action, icon, kicker, title, text) =>
-        `<button class="hero more-wide" data-action="${action}" aria-label="${kicker}: ${text}">${chip(icon, 'glass')}<span class="hero-text"><small>${kicker}</small><strong>${title}</strong></span>${ICON.chevron}</button>`;
+    property(p) {
+      const t = p.tenant;
+      const others = properties.length - 1;
       return `
-        <h2 class="screen-h">Everything else</h2>
-        <div class="more-stack">
-          <div class="tiles tiles-more">
-            ${item('move-in', 'clipboard', 'Move-in pack', 'Print-ready checklist')}
-            ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
-            ${item('feedback', 'thumb', 'Feedback', 'Tell us what to fix')}
-            ${item('about', 'sparkle', 'About', 'Why RentUK exists')}
+        <div class="prop-head glass">
+          ${chip('property', 'indigo')}
+          <div class="grow">
+            <h2>${esc(p.name)}</h2>
+            <p>${p.address ? esc(p.address) : '<span class="muted">No address yet</span>'}</p>
+            <span class="nation-pill">${ICON.pin}${esc(RentUKLib.NATIONS[RentUKLib.nationOf(p)])}</span>
           </div>
-          ${wide('resources', 'info', 'Helpful resources', 'GOV.UK and HMRC', 'renting rules, tax and Making Tax Digital')}
+          <button class="icon-btn" data-action="edit-property" aria-label="Edit property details">${ICON.pencil}</button>
+        </div>
+        <div class="tiles">
+          <button class="tile tile-sky" data-action="${t && t.name ? 'contact' : 'tenant'}">
+            ${chip('user', 'glass')}
+            <span class="tile-body"><small>Tenant</small><strong>${t && t.name ? esc(t.name) : 'Add tenant'}</strong>
+              <span>${t && t.rentAmount ? money(t.rentAmount) + ' a month' : 'Name, contact, rent'}</span></span>
+          </button>
+          <button class="tile tile-sky" data-action="move-in">
+            ${chip('clipboard', 'glass')}
+            <span class="tile-body"><small>Move-in pack</small><strong>Checklist</strong><span>Print or save as PDF</span></span>
+          </button>
+          <button class="tile tile-sky" data-action="properties">
+            ${chip('house', 'glass')}
+            <span class="tile-body"><small>Portfolio</small><strong>${properties.length} ${properties.length === 1 ? 'property' : 'properties'}</strong>
+              <span>${others ? 'Switch property' : 'Add another'}</span></span>
+          </button>
+          <button class="tile tile-sky" data-action="add-property">
+            ${chip('plus', 'glass')}
+            <span class="tile-body"><small>Grow</small><strong>Add property</strong><span>About a minute</span></span>
+          </button>
         </div>`;
     }
   };
@@ -497,6 +464,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const p = getCurrentProperty();
     const actions = {
       setup: showSetupWizard,
+      'add-property': showSetupWizard,
+      'edit-property': () => propertySheet(p),
+      menu: menuSheet,
       properties: propertiesSheet,
       tenant: () => tenantSheet(p),
       contact: () => contactSheet(p),
@@ -578,14 +548,25 @@ document.addEventListener('DOMContentLoaded', function() {
   function dateSheet(kind, id, preset) {
     const list = kind === 'aob' ? aobReminders : reminders;
     const existing = kind ? list.find(r => String(r.id) === String(id)) : null;
+    const p = getCurrentProperty();
+    let scope = existing ? (existing.propertyId ? 'one' : 'all') : 'one';
+    const canScope = kind !== 'std' && properties.length > 1;
     openSheet(existing ? 'Key date' : 'Add a date', `
       ${field('d-name', 'What is it?', 'text', existing ? existing.name : preset, 'placeholder="Check smoke alarms" autocomplete="off"')}
       ${field('d-date', 'When', 'date', existing && existing.dueDate)}
+      ${canScope ? `<div class="seg seg-2" role="group" aria-label="Which properties">
+        <button data-scope="one" class="${scope === 'one' ? 'on' : ''}" aria-pressed="${scope === 'one'}">This property</button>
+        <button data-scope="all" class="${scope === 'all' ? 'on' : ''}" aria-pressed="${scope === 'all'}">All properties</button>
+      </div>` : ''}
       <div class="sheet-actions">
         ${existing ? '<button class="btn btn-quiet" id="d-del">Delete</button>' : ''}
         <button class="btn" id="d-save">${existing ? 'Save' : 'Add date'}</button>
       </div>`, s => {
       if (preset) s.querySelector('#d-date').focus();
+      s.querySelectorAll('[data-scope]').forEach(b => b.onclick = () => {
+        scope = b.dataset.scope;
+        s.querySelectorAll('[data-scope]').forEach(o => { o.classList.toggle('on', o === b); o.setAttribute('aria-pressed', o === b); });
+      });
       if (existing) s.querySelector('#d-del').onclick = () => {
         closeSheet();
         if (kind === 'aob') deleteAOBReminder(existing.id); else deleteReminder(existing.id);
@@ -594,8 +575,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const name = s.querySelector('#d-name').value.trim();
         const dueDate = s.querySelector('#d-date').value;
         if (!name) return sheetError(s, 'Give it a name.');
-        if (existing) Object.assign(existing, { name, dueDate });
-        else aobReminders.push({ id: 'aob_' + Date.now(), name, dueDate, completed: false });
+        const propertyId = kind === 'std' ? null : (scope === 'all' && canScope) ? null : (p ? p.id : null);
+        if (existing) Object.assign(existing, kind === 'std' ? { name, dueDate } : { name, dueDate, propertyId });
+        else aobReminders.push({ id: 'aob_' + Date.now(), name, dueDate, completed: false, propertyId });
         saveData(); closeSheet(); render();
       };
     });
@@ -645,8 +627,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function editTenant(propertyId) { tenantSheet(properties.find(p => p.id === propertyId)); }
-
   function propertiesSheet() {
     const cur = getCurrentProperty();
     openSheet('Your properties', `
@@ -657,6 +637,68 @@ document.addEventListener('DOMContentLoaded', function() {
       <button class="btn btn-add" id="p-add">${ICON.plus}Add a property</button>`, s => {
       s.querySelectorAll('.pick').forEach(b => b.onclick = () => { closeSheet(); Object.keys(pageAt).forEach(k => delete pageAt[k]); setCurrentProperty(b.dataset.id); });
       s.querySelector('#p-add').onclick = () => { closeSheet(); showSetupWizard(); };
+    });
+  }
+
+  function menuSheet() {
+    const item = (action, icon, title, text) =>
+      `<button class="pick menu-item" data-go="${action}">${chip(icon, 'sky', 'ichip-sm')}<span class="grow"><strong>${title}</strong><small>${text}</small></span>${ICON.chevron}</button>`;
+    openSheet('Menu', `
+      <div class="pick-list">
+        ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
+        ${item('resources', 'info', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
+        ${item('feedback', 'thumb', 'Feedback', 'Tell us what to fix')}
+        ${item('about', 'sparkle', 'About and privacy', 'Why RentUK exists')}
+      </div>`, s => {
+      const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet };
+      s.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go[b.dataset.go]());
+    });
+  }
+
+  function nationSelect(id, value) {
+    return `<label class="field" for="${id}"><span>Where is it?</span><select id="${id}">${Object.entries(RentUKLib.NATIONS)
+      .map(([k, label]) => `<option value="${k}" ${k === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label>`;
+  }
+
+  function propertySheet(p) {
+    if (!p) return;
+    openSheet('Property details', `
+      ${field('p-name', 'Name', 'text', p.name, 'maxlength="60" autocomplete="off"')}
+      ${field('p-address', 'Address', 'text', p.address, 'maxlength="200" autocomplete="off" placeholder="Street, town, postcode"')}
+      ${nationSelect('p-nation', RentUKLib.nationOf(p))}
+      <p class="fine">Letting rules differ in England, Wales, Scotland and Northern Ireland. Your checks follow this choice.</p>
+      <div class="sheet-actions">
+        <button class="btn btn-quiet" id="p-del">Delete property</button>
+        <button class="btn" id="p-save">Save</button>
+      </div>`, s => {
+      s.querySelector('#p-save').onclick = () => {
+        const name = s.querySelector('#p-name').value.trim();
+        if (!name) return sheetError(s, 'Give the property a name.');
+        Object.assign(p, { name, address: s.querySelector('#p-address').value.trim(), nation: s.querySelector('#p-nation').value });
+        saveData(); closeSheet(); render();
+      };
+      s.querySelector('#p-del').onclick = () => confirmDeleteProperty(p);
+    });
+  }
+
+  // Deleting a property also removes its own costs and dates. Typed name confirmation, as it cannot be undone.
+  function confirmDeleteProperty(p) {
+    const costs = expenses.filter(e => e.propertyId === p.id).length;
+    openSheet('Delete this property?', `
+      <p class="story">This removes <strong>${esc(p.name)}</strong>, its tenant details, checks${costs ? `, ${costs} ${costs === 1 ? 'cost' : 'costs'}` : ''} and its own dates from this device. It cannot be undone. Save a backup first if you may want it later.</p>
+      <label class="field" for="pd-confirm"><span>Type <strong>DELETE</strong> to confirm</span><input id="pd-confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+      <div class="sheet-actions"><button class="btn btn-quiet" id="pd-no">Cancel</button><button class="btn btn-danger" id="pd-yes" disabled>Delete property</button></div>`, s => {
+      const input = s.querySelector('#pd-confirm'), yes = s.querySelector('#pd-yes');
+      input.addEventListener('input', () => { yes.disabled = input.value.trim().toUpperCase() !== 'DELETE'; });
+      s.querySelector('#pd-no').onclick = () => propertySheet(p);
+      yes.onclick = () => {
+        properties = properties.filter(x => x !== p);
+        expenses = expenses.filter(e => e.propertyId !== p.id);
+        aobReminders = aobReminders.filter(a => a.propertyId !== p.id);
+        currentPropertyId = properties.length ? properties[0].id : null;
+        Object.keys(pageAt).forEach(k => delete pageAt[k]);
+        saveData(); closeSheet(); screen = 'home'; render(true);
+      };
     });
   }
 
@@ -947,106 +989,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     el.textContent = msg;
   }
 
-  // Show add property form
-  function showAddPropertyForm() {
-    const alertDiv = document.createElement('div');
-    alertDiv.id = 'custom-alert';
-    alertDiv.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      padding: 20px;
-      z-index: 10000;
-      max-width: 500px;
-      width: 90%;
-      color: #1e293b;
-    `;
-
-    alertDiv.innerHTML = `
-      <h3 style="color: #4f46e5; margin-bottom: 16px;">Add New Property</h3>
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Property Name</label>
-        <input type="text" id="property-name" placeholder="e.g., 123 Main Street" 
-               style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-      </div>
-      <div style="margin-bottom: 16px;">
-        <label style="display: block; margin-bottom: 8px; font-weight: 600;">Address</label>
-        <input type="text" id="property-address" placeholder="Full property address" 
-               style="width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px;">
-      </div>
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
-        <button id="confirm-add-property" 
-                style="background: #4f46e5; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
-          Add Property
-        </button>
-        <button class="alert-cancel" 
-                style="background: #94a3b8; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;">
-          Cancel
-        </button>
-      </div>
-    `;
-
-    document.body.appendChild(alertDiv);
-    alertDiv.querySelector('.alert-cancel').addEventListener('click', () => alertDiv.remove());
-    makeDialog(alertDiv);
-
-    // Add event listener to the button after the element is created
-    setTimeout(() => {
-      const confirmButton = document.getElementById('confirm-add-property');
-      if (confirmButton) {
-        confirmButton.addEventListener('click', addNewProperty);
-      }
-    }, 100);
-  }
-
-  // Add new property - FIXED VERSION
-  function addNewProperty() {
-    const alertDiv = document.getElementById('custom-alert');
-    if (!alertDiv) return;
-
-    const nameInput = alertDiv.querySelector('#property-name');
-    const addressInput = alertDiv.querySelector('#property-address');
-
-    if (!nameInput || !addressInput) {
-      showCustomAlert('Form elements not found', 'RentUK says');
-      return;
-    }
-
-    const name = nameInput.value.trim();
-    const address = addressInput.value.trim();
-
-    if (!name) {
-      showCustomAlert('Please enter a property name', 'RentUK says');
-      return;
-    }
-
-    const newProperty = {
-      id: 'prop_' + Date.now(),
-      name: name,
-      address: address,
-      tenant: null,
-      createdAt: new Date().toISOString()
-    };
-
-    properties.push(newProperty);
-
-    // Set as current property if it's the first one
-    if (properties.length === 1) {
-      currentPropertyId = newProperty.id;
-      writeAll(store, { currentPropertyId: String(currentPropertyId) });
-    }
-
-    saveData();
-    alertDiv.remove();
-    loadPropertySelector();
-    loadDashboard();
-    showCustomAlert('Property added successfully!', 'RentUK says');
-  }
-
   // Load local data
   function loadLocalData() {
     expenses = asList(readJson(store, 'expenses', []), []);
@@ -1197,16 +1139,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     }
   }
 
-  // Function to update reminder date
-  function updateReminderDate(id, value) {
-    const reminder = reminders.find(r => r.id == id);
-    if (reminder) {
-      reminder.dueDate = value;
-      saveData();
-      loadDashboard(); // Update dashboard too
-    }
-  }
-
   // Delete reminder function
   function deleteReminder(id) {
     reminders = reminders.filter(r => r.id != id);
@@ -1298,7 +1230,10 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         }));
     });
     [...reminders, ...aobReminders].filter(r => r.dueDate && !r.completed && r.dueDate >= today)
-      .forEach(r => events.push({ uid: `reminder-${r.id}-${r.dueDate}`, date: r.dueDate, title: r.name }));
+      .forEach(r => {
+        const prop = r.propertyId ? properties.find(x => x.id === r.propertyId) : null;
+        events.push({ uid: `reminder-${r.id}-${r.dueDate}`, date: r.dueDate, title: prop ? `${r.name} – ${prop.name}` : r.name });
+      });
     if (!events.length) {
       showCustomAlert('Nothing to add yet. Add certificate dates in the Compliance Score, or reminder due dates, then try again.', 'No dates yet');
       return;
@@ -1401,7 +1336,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   // ---- 60-second setup ----
   function showSetupWizard() {
     if (document.getElementById('setup-wizard')) return;
-    const answers = { name: '', rent: '', compliance: {} };
+    const answers = { name: '', rent: '', nation: 'england', compliance: {} };
     const overlay = document.createElement('div');
     overlay.id = 'setup-wizard';
     overlay.className = 'wizard-overlay';
@@ -1437,6 +1372,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <p class="wizard-kicker">Step 1 of 3 · about 60 seconds</p>
           <h3>What do you call this property?</h3>
           <input id="wz-name" type="text" aria-label="Property name" maxlength="60" placeholder="e.g. Flat 2, Oak Street house" value="${esc(answers.name)}">
+          <label class="wizard-label" for="wz-nation">Where is it?</label>
+          <select id="wz-nation">${Object.entries(RentUKLib.NATIONS).map(([k, label]) => `<option value="${k}" ${k === answers.nation ? 'selected' : ''}>${label}</option>`).join('')}</select>
           <label class="wizard-label" for="wz-rent">Monthly rent (optional)</label>
           <input id="wz-rent" type="number" min="0" step="1" placeholder="£" value="${esc(answers.rent)}">
           <p class="wizard-hint">🔒 Stays on this device. No account, no sign-up.</p>
@@ -1481,6 +1418,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         if (!name) { overlay.querySelector('#wz-name').classList.add('invalid'); overlay.querySelector('#wz-name').focus(); return; }
         answers.name = name;
         answers.rent = overlay.querySelector('#wz-rent').value;
+        answers.nation = overlay.querySelector('#wz-nation').value;
       } else if (step === 1) {
         dates.forEach(i => {
           const v = overlay.querySelector('#wz-' + i.key).value;
@@ -1492,6 +1430,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           id: 'prop_' + Date.now(),
           name: answers.name,
           address: '',
+          nation: answers.nation,
           tenant: null,
           compliance: RentUKLib.cleanCompliance(answers.compliance),
           createdAt: new Date().toISOString()
@@ -1568,28 +1507,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     showCustomAlert('Your score card image has been saved. It shows only your score — no names or addresses.', 'Score card ready');
   }
 
-  // Function to toggle reminder status from dashboard
-  function toggleDashboardReminderStatus(id) {
-    // Find in reminders first
-    let reminder = reminders.find(r => r.id == id);
-    if (reminder) {
-      reminder.completed = !reminder.completed;
-      saveData();
-      loadDashboard();
-      loadReminders();
-      return;
-    }
-
-    // Find in AOB reminders
-    let aob = aobReminders.find(a => a.id == id);
-    if (aob) {
-      aob.completed = !aob.completed;
-      saveData();
-      loadDashboard();
-      loadReminders();
-    }
-  }
-
   // Delete everything RentUK keeps in this browser, after typed confirmation.
   function confirmDeleteAll() {
     if (document.getElementById('delete-all-dialog')) return;
@@ -1630,21 +1547,4 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   // Initialize app
   initApp();
 
-  // Make functions available globally for HTML onclick
-  window.exportData = exportData;
-  window.importData = importData;
-  window.toggleReminderStatus = toggleReminderStatus;
-  window.toggleAOBStatus = toggleAOBStatus;
-  window.toggleDashboardReminderStatus = toggleDashboardReminderStatus;
-  window.deleteReminder = deleteReminder;
-  window.deleteAOBReminder = deleteAOBReminder;
-  window.showCustomAlert = showCustomAlert;
-  window.showFeedbackForm = showFeedbackForm;
-  window.submitFeedback = submitFeedback;
-  window.showAddPropertyForm = showAddPropertyForm;
-  window.addNewProperty = addNewProperty;
-  window.setCurrentProperty = setCurrentProperty;
-  window.editTenant = editTenant;
-  window.updateReminderDate = updateReminderDate;
-  window.showSetupWizard = showSetupWizard;
 });

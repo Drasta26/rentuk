@@ -688,3 +688,30 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   box-shadow: 0 6px 14px -6px rgba(79, 70, 229, 0.8); flex: none;
 }
 .pwa-add-line { display: flex; align-items: center; gap: 10px; line-height: 1.3; font-weight: 600; }
+
+/* ---- Iteration 1: Property tab, menu, nation ---- */
+.topbar .prop-chip { margin-left: auto; max-width: 52%; }
+.menu-btn { width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; flex: none; }
+.menu-btn[hidden] { display: none; }
+.menu-btn svg { width: 22px; height: 22px; color: var(--brand-text); }
+.menu-item { width: 100%; text-align: left; }
+.menu-item .grow { display: flex; flex-direction: column; min-width: 0; }
+.menu-item small { color: var(--muted); font-size: 0.82rem; }
+.menu-item > svg:last-child { color: var(--muted); width: 18px; height: 18px; }
+.prop-head { display: flex; align-items: flex-start; gap: 14px; padding: 16px; border-radius: var(--radius); }
+.prop-head .grow { flex: 1; min-width: 0; }
+.prop-head h2 { font-size: 1.3rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.prop-head p { color: var(--muted); font-size: 0.9rem; margin: 2px 0 8px; overflow-wrap: anywhere; }
+.nation-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px 4px 6px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; color: var(--brand-text); background: var(--tint-2); }
+.nation-pill svg { width: 15px; height: 15px; }
+.muted { color: var(--muted); }
+.screen-property { display: flex; flex-direction: column; gap: 14px; }
+.seg-2 { grid-template-columns: 1fr 1fr; }
+.field select, .wizard select {
+  width: 100%; min-height: 50px; padding: 12px 14px; border-radius: 16px;
+  background: rgba(255, 255, 255, 0.85); border: 1px solid var(--glass-line); color-scheme: light;
+  -webkit-appearance: none; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat;
+}
+.wizard select { margin-bottom: 8px; }

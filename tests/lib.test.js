@@ -63,10 +63,10 @@ test('validateBackup removes expenses without a valid amount', () => {
 test('validateBackup accepts an export from the app unchanged', () => {
   const exported = {
     expenses: [{ id: 1730000000001, date: '2026-10-01', description: 'Boiler repair', amount: 120, category: 'repairs', propertyId: 'prop_1' }],
-    properties: [{ id: 'prop_1', name: 'Flat 1', address: '1 Example Road', tenant: null, createdAt: '2026-10-30T10:00:00.000Z' }],
+    properties: [{ id: 'prop_1', name: 'Flat 1', address: '1 Example Road', nation: 'england', tenant: null, createdAt: '2026-10-30T10:00:00.000Z' }],
     currentPropertyId: 'prop_1',
     reminders: [{ id: 1, name: 'Gas Safety Check', dueDate: '2026-12-01', type: 'gas', completed: false, propertyId: null }],
-    aobReminders: [{ id: 'aob_1730000000002', name: 'Check smoke alarms', dueDate: '2026-11-15', completed: true }]
+    aobReminders: [{ id: 'aob_1730000000002', name: 'Check smoke alarms', dueDate: '2026-11-15', completed: true, propertyId: 'prop_1' }]
   };
   const r = validateBackup(exported);
   assert.equal(r.skipped, 0);
@@ -264,4 +264,30 @@ test('backupDue: monthly after the last backup', () => {
   const day = 86400000, now = 100 * day;
   assert.equal(backupDue(now, true, now - 29 * day, 0), false);
   assert.equal(backupDue(now, true, now - 30 * day, 0), true);
+});
+
+test('nationOf defaults to England and only accepts the four UK nations', () => {
+  const { nationOf } = require('../lib.js');
+  assert.equal(nationOf({}), 'england');
+  assert.equal(nationOf({ nation: 'wales' }), 'wales');
+  assert.equal(nationOf({ nation: 'scotland' }), 'scotland');
+  assert.equal(nationOf({ nation: 'ni' }), 'ni');
+  assert.equal(nationOf({ nation: 'france' }), 'england');
+  assert.equal(nationOf({ nation: 'toString' }), 'england');
+});
+
+test('datesFor keeps dates for this property and dates for all properties', () => {
+  const { datesFor } = require('../lib.js');
+  const list = [{ id: 1, propertyId: 'a' }, { id: 2, propertyId: 'b' }, { id: 3, propertyId: null }, { id: 4 }];
+  assert.deepEqual(datesFor(list, 'a').map(d => d.id), [1, 3, 4]);
+  assert.deepEqual(datesFor(list, 'b').map(d => d.id), [2, 3, 4]);
+});
+
+test('validateBackup keeps a valid nation and the property a date belongs to', () => {
+  const r = validateBackup({ properties: [{ id: 'p1', name: 'A', nation: 'scotland' }, { id: 'p2', name: 'B', nation: '<x>' }],
+    aobReminders: [{ id: 'aob_1', name: 'Check', propertyId: 'p1' }, { id: 'aob_2', name: 'Bad', propertyId: '<script>' }] });
+  assert.equal(r.data.properties[0].nation, 'scotland');
+  assert.equal(r.data.properties[1].nation, 'england');
+  assert.equal(r.data.aobReminders[0].propertyId, 'p1');
+  assert.equal(r.data.aobReminders[1].propertyId, null);
 });

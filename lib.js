@@ -26,6 +26,14 @@
   function date(v) { return typeof v === 'string' && DATE_RE.test(v) ? v : ''; }
   function idOrNull(v) { return isSafeId(v) ? v : null; }
 
+  // UK nations have different letting law, so every property records which one it is in.
+  const NATIONS = { england: 'England', wales: 'Wales', scotland: 'Scotland', ni: 'Northern Ireland' };
+  function nationOf(p) { return p && Object.hasOwn(NATIONS, p.nation) ? p.nation : 'england'; }
+  // A date belongs to one property, or to every property when propertyId is empty.
+  function datesFor(list, propertyId) {
+    return (list || []).filter(d => d && (d.propertyId == null || d.propertyId === '' || d.propertyId === propertyId));
+  }
+
   // Compliance checklist (England, private rented sector). Informational only, not legal advice.
   // kind 'date' = date of last certificate/check, valid for `months`; kind 'yes' = done or not.
   // Checked against GOV.UK and HSE on 30 Oct 2026 (Renters' Rights Act changes from 1 May 2026).
@@ -168,13 +176,13 @@
       leaseStart: ago(startAgo), leaseEnd: addDays(ago(startAgo), 365), rentAmount: String(rent)
     });
     const properties = [
-      { id: 'demo_maple', name: 'Maple Court flat (demo)', address: 'Example address',
+      { id: 'demo_maple', name: 'Maple Court flat (demo)', address: '1 Example Road, Sampletown', nation: 'england',
         tenant: tenant('Sam Example', 1150, 120), createdAt: todayIso,
         compliance: { gas: ago(100), eicr: ago(400), epc: ago(1000), deposit: true, alarms: true, rightToRent: true, rraInfo: true } },
-      { id: 'demo_oak', name: 'Oak Lane house (demo)', address: 'Example address',
+      { id: 'demo_oak', name: 'Oak Lane house (demo)', address: '2 Example Lane, Sampletown', nation: 'england',
         tenant: tenant('Alex Sample', 1450, 300), createdAt: todayIso,
         compliance: { gas: ago(350), eicr: ago(1900), epc: ago(2000), deposit: true, alarms: true, rightToRent: true } },
-      { id: 'demo_station', name: 'Station Road studio (demo)', address: 'Example address',
+      { id: 'demo_station', name: 'Station Road studio (demo)', address: '3 Example Street, Sampletown', nation: 'england',
         tenant: tenant('Jo Test', 795, 30), createdAt: todayIso,
         compliance: { epc: ago(700), deposit: true } }
     ];
@@ -192,7 +200,7 @@
       { id: 1, name: 'Gas Safety Check', dueDate: addDays(todayIso, 15), type: 'gas', completed: false, propertyId: null },
       { id: 4, name: 'Insurance Renewal', dueDate: addDays(todayIso, 25), type: 'insurance', completed: false, propertyId: null }
     ];
-    const aobReminders = [{ id: 9100, name: 'Check smoke alarms at Oak Lane', dueDate: addDays(todayIso, 9), completed: false }];
+    const aobReminders = [{ id: 9100, name: 'Check smoke alarms', dueDate: addDays(todayIso, 9), completed: false, propertyId: 'demo_oak' }];
     return { properties, expenses, reminders, aobReminders, currentPropertyId: 'demo_oak' };
   }
 
@@ -231,7 +239,7 @@
     let skipped = ['properties', 'expenses', 'reminders', 'aobReminders']
       .reduce((n, k) => n + (Array.isArray(raw[k]) ? raw[k].length : 0), 0);
     if (props) data.properties = props.map(p => ({
-      id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address),
+      id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address), nation: nationOf(p),
       tenant: cleanTenant(p.tenant), createdAt: text(p.createdAt),
       ...(p.compliance ? { compliance: cleanCompliance(p.compliance) } : {})
     }));
@@ -244,7 +252,7 @@
       completed: r.completed === true, propertyId: idOrNull(r.propertyId)
     }));
     if (aobs) data.aobReminders = aobs.map(a => ({
-      id: a.id, name: text(a.name), dueDate: date(a.dueDate), completed: a.completed === true
+      id: a.id, name: text(a.name), dueDate: date(a.dueDate), completed: a.completed === true, propertyId: idOrNull(a.propertyId)
     }));
     data.currentPropertyId = idOrNull(raw.currentPropertyId);
     for (const k of ['properties', 'expenses', 'reminders', 'aobReminders']) skipped -= data[k] ? data[k].length : 0;
@@ -319,7 +327,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
