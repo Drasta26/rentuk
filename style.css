@@ -732,3 +732,21 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .empty-card h2 { font-size: 1.2rem; font-weight: 800; }
 .empty-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
 .screen-money { display: flex; flex-direction: column; gap: 12px; }
+
+/* ---- Iteration 3: repairs ---- */
+.screen-property .screen-head .icon-btn { width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; flex: none; }
+.issue-row .prio { width: 10px; align-self: stretch; border-radius: 999px; flex: none; background: var(--muted); opacity: 0.35; }
+.prio-urgent { background: var(--bad) !important; opacity: 1 !important; }
+.prio-soon { background: var(--warn) !important; opacity: 1 !important; }
+.st { font-weight: 700; }
+.st-warn { color: #b45309; }
+.st-info { color: var(--brand-text); }
+.st-ok { color: var(--ok); }
+.seg-3 { grid-template-columns: repeat(3, 1fr); }
+.seg-4 { grid-template-columns: repeat(4, 1fr); }
+.seg-4 button { font-size: 0.82rem; padding: 0 2px; }
+.field textarea {
+  width: 100%; padding: 10px 14px; border-radius: 16px; resize: none; font: inherit; font-size: 1rem; color: var(--text);
+  background: rgba(255, 255, 255, 0.85); border: 1px solid var(--glass-line); color-scheme: light;
+}
+.field > .seg { margin-top: 2px; }

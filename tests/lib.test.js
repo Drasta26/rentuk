@@ -364,3 +364,27 @@ test('demo data includes made-up payments with one month missed at Station Road'
   assert.ok(rentLedger(st.tenant, d.payments, st.id, '2026-11-18').arrears > 0);
   assert.equal(rentLedger(oak.tenant, d.payments, oak.id, '2026-11-18').arrears, 0);
 });
+
+test('issues: open urgent first, done last; summary counts open and urgent per property', () => {
+  const { sortIssues, issueSummary } = require('../lib.js');
+  const list = [
+    { id: 1, propertyId: 'a', priority: 'routine', status: 'open', reported: '2026-11-01' },
+    { id: 2, propertyId: 'a', priority: 'urgent', status: 'booked', reported: '2026-11-10' },
+    { id: 3, propertyId: 'a', priority: 'urgent', status: 'done', reported: '2026-10-01' },
+    { id: 4, propertyId: 'b', priority: 'soon', status: 'open', reported: '2026-11-05' }];
+  assert.deepEqual(sortIssues(list).map(i => i.id), [2, 4, 1, 3]);
+  const s = issueSummary(list, 'a', '2026-11-18');
+  assert.equal(s.open, 2); assert.equal(s.urgent, 1); assert.equal(s.oldestDays, 17); assert.equal(s.first.id, 2);
+  assert.equal(issueSummary(list, null, '2026-11-18').open, 3);
+});
+
+test('validateBackup cleans maintenance issues and keeps the link from a cost to its repair', () => {
+  const r = validateBackup({
+    issues: [{ id: 'iss_1', propertyId: 'p1', title: 'Leak', priority: 'nonsense', status: 'booked', quote: '120', cost: '-3', reported: '2026-11-01' },
+      { id: 'iss_2', propertyId: '<x>', title: 'Bad' }],
+    expenses: [{ id: 5, date: '2026-11-02', description: 'Leak', amount: 120, category: 'repairs', propertyId: 'p1', issueId: 'iss_1' }] });
+  assert.equal(r.data.issues.length, 1);
+  const i = r.data.issues[0];
+  assert.equal(i.priority, 'routine'); assert.equal(i.status, 'booked'); assert.equal(i.quote, 120); assert.equal(i.cost, null);
+  assert.equal(r.data.expenses[0].issueId, 'iss_1');
+});

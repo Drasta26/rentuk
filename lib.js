@@ -201,6 +201,33 @@
       (propertyId == null || x.propertyId === propertyId)).reduce((s, x) => s + (Number(x.amount) || 0), 0) * 100) / 100;
   }
 
+  // ---- Maintenance: issues move from reported to done; urgent ones come first ----
+  const ISSUE_STATUS = { open: 'Reported', quoted: 'Quote in', booked: 'Booked', done: 'Done' };
+  const ISSUE_PRIORITY = { urgent: 'Urgent', soon: 'Soon', routine: 'Routine' };
+  const PRIORITY_RANK = { urgent: 0, soon: 1, routine: 2 };
+  function sortIssues(list) {
+    return [...(list || [])].sort((a, b) =>
+      ((a.status === 'done') - (b.status === 'done')) ||
+      ((PRIORITY_RANK[a.priority] ?? 2) - (PRIORITY_RANK[b.priority] ?? 2)) ||
+      String(a.reported || '').localeCompare(String(b.reported || '')));
+  }
+  function issueSummary(list, propertyId, todayIso) {
+    const open = (list || []).filter(i => i && i.status !== 'done' && (propertyId == null || i.propertyId === propertyId));
+    const urgent = open.filter(i => i.priority === 'urgent');
+    const oldest = open.map(i => date(i.reported)).filter(Boolean).sort()[0] || null;
+    return { open: open.length, urgent: urgent.length, oldestDays: oldest ? daysBetween(oldest, todayIso) : 0, first: sortIssues(open)[0] || null };
+  }
+  function cleanIssue(i) {
+    const num = v => { const n = parseFloat(v); return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null; };
+    return {
+      id: i.id, propertyId: idOrNull(i.propertyId), title: text(i.title) || 'Repair', detail: text(i.detail),
+      priority: Object.hasOwn(ISSUE_PRIORITY, i.priority) ? i.priority : 'routine',
+      status: Object.hasOwn(ISSUE_STATUS, i.status) ? i.status : 'open',
+      contractor: text(i.contractor), quote: num(i.quote), cost: num(i.cost),
+      reported: date(i.reported), doneOn: date(i.doneOn)
+    };
+  }
+
   // ---- Calendar export (iCalendar, RFC 5545) ----
   function icsText(v) {
     return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
@@ -271,7 +298,12 @@
         payments.push({ id: 9200 + pi * 20 + i, propertyId: p.id, date: addDays(d, pi), amount: Number(p.tenant.rentAmount), note: 'Bank transfer' });
       });
     });
-    return { properties, expenses, reminders, aobReminders, payments, currentPropertyId: 'demo_oak' };
+    const issues = [
+      { id: 9300, propertyId: 'demo_oak', title: 'Boiler losing pressure', detail: 'Tenant reports radiators cold in the mornings.', priority: 'urgent', status: 'booked', contractor: 'Example Heating Ltd', quote: 180, cost: null, reported: ago(3), doneOn: '' },
+      { id: 9301, propertyId: 'demo_oak', title: 'Loose stair handrail', detail: '', priority: 'soon', status: 'open', contractor: '', quote: null, cost: null, reported: ago(6), doneOn: '' },
+      { id: 9302, propertyId: 'demo_maple', title: 'Dripping kitchen tap', detail: 'Washer replaced.', priority: 'routine', status: 'done', contractor: 'Sample Plumbing', quote: 60, cost: 55, reported: ago(40), doneOn: ago(34) }
+    ];
+    return { properties, expenses, reminders, aobReminders, payments, issues, currentPropertyId: 'demo_oak' };
   }
 
   function cleanCompliance(c) {
@@ -304,12 +336,12 @@
       return { ok: false, error: 'Backup file is not a RentUK backup.' };
     }
     const list = (k) => (Array.isArray(raw[k]) ? raw[k].filter(x => x && typeof x === 'object' && isSafeId(x.id)) : null);
-    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders'), pays = list('payments');
-    if (!props && !exps && !rems && !aobs && !pays) {
+    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders'), pays = list('payments'), iss = list('issues');
+    if (!props && !exps && !rems && !aobs && !pays && !iss) {
       return { ok: false, error: 'Backup file has no RentUK data.' };
     }
     const data = {};
-    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders', 'payments']
+    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues']
       .reduce((n, k) => n + (Array.isArray(raw[k]) ? raw[k].length : 0), 0);
     if (props) data.properties = props.map(p => ({
       id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address), nation: nationOf(p),
@@ -318,7 +350,8 @@
     }));
     if (exps) data.expenses = exps
       .map(e => ({ id: e.id, date: date(e.date), description: text(e.description),
-        amount: parseFloat(e.amount), category: text(e.category), propertyId: idOrNull(e.propertyId) }))
+        amount: parseFloat(e.amount), category: text(e.category), propertyId: idOrNull(e.propertyId),
+        ...(isSafeId(e.issueId) ? { issueId: e.issueId } : {}) }))
       .filter(e => Number.isFinite(e.amount));
     if (rems) data.reminders = rems.map(r => ({
       id: r.id, name: text(r.name), dueDate: date(r.dueDate), type: text(r.type),
@@ -330,8 +363,9 @@
     if (pays) data.payments = pays
       .map(x => ({ id: x.id, propertyId: idOrNull(x.propertyId), date: date(x.date), amount: parseFloat(x.amount), note: text(x.note) }))
       .filter(x => Number.isFinite(x.amount) && x.amount >= 0 && x.date && x.propertyId);
+    if (iss) data.issues = iss.map(cleanIssue).filter(i => i.propertyId);
     data.currentPropertyId = idOrNull(raw.currentPropertyId);
-    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders', 'payments']) skipped -= data[k] ? data[k].length : 0;
+    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues']) skipped -= data[k] ? data[k].length : 0;
     return { ok: true, data, skipped };
   }
 
@@ -366,7 +400,7 @@
   }
 
   // Every key RentUK keeps in this browser. Other apps on the same site keep their own keys, so only these are cleared.
-  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
+  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
 
   // Remove all RentUK keys; returns { ok } instead of throwing when storage is blocked.
   function clearAll(storage, keys = DATA_KEYS) {
@@ -388,7 +422,7 @@
   }
 
   // True when another tab erased RentUK data, so this tab must reload instead of writing its stale copy back.
-  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'currentPropertyId'];
+  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'currentPropertyId'];
   function erasedElsewhere(e, storage) {
     if (!e || e.storageArea !== storage) return false;
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
@@ -403,7 +437,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

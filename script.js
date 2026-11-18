@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let aobReminders = asList(readJson(store, 'aobReminders', []), []);
   // Rent payments the landlord has recorded (actual money received).
   let payments = asList(readJson(store, 'payments', []), []);
+  // Maintenance issues (repairs) per property.
+  let issues = asList(readJson(store, 'issues', []), []);
 
   // Get current property
   function getCurrentProperty() {
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
   ];
   let screen = 'home';
   let moneyView = 'rent';
+  let propView = 'main';
   const pageAt = {};
 
   function loadMainUI() {
@@ -168,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function go(tab) {
     screen = SCREENS[tab] ? tab : 'home';
+    propView = 'main';
     render(true);
     document.getElementById('main').focus({ preventScroll: true });
   }
@@ -235,6 +239,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function nextUp(p) {
     const rs = rentState(p);
     if (rs.tone === 'bad') return { tone: 'bad', title: 'Rent overdue', text: `${rs.title}. ${rs.text}.`, go: 'money' };
+    const iss = RentUKLib.issueSummary(issues, p.id, todayIso());
+    if (iss.urgent) return { tone: 'bad', title: 'Urgent repair', text: `${iss.first.title} · ${RentUKLib.ISSUE_STATUS[iss.first.status]}`, action: 'repairs' };
     const r = RentUKLib.complianceScore(p.compliance, todayIso());
     const bad = r.items.find(i => i.status === 'expired') || r.items.find(i => i.status === 'missing');
     if (bad) return { tone: 'bad', title: bad.label, text: bad.status === 'expired' ? 'Expired. Renew it now.' : 'Not set yet. Takes a few seconds.', go: 'checks' };
@@ -305,7 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
       return `
         <div class="hello"><h2>${greeting()}</h2><p>Here is how ${esc(p.name)} looks today.</p></div>
         <div class="bento">
-          <button class="tile t-next tone-${n.tone} tile-sky" ${n.go ? `data-tab="${n.go}"` : 'disabled'}>
+          <button class="tile t-next tone-${n.tone} tile-sky" ${n.action ? `data-action="${n.action}"` : n.go ? `data-tab="${n.go}"` : 'disabled'}>
             ${chip(n.tone === 'ok' ? 'tick' : 'alert', 'glass', n.tone === 'ok' ? '' : 'ichip-warn')}
             <span class="tile-body"><small>Next up</small><strong>${esc(n.title)}</strong><span>${esc(n.text)}</span></span>
           </button>
@@ -395,8 +401,10 @@ document.addEventListener('DOMContentLoaded', function() {
       return `${seg}${rentView(p, h, start)}`;
     },
 
-    property(p) {
+    property(p, h) {
+      if (propView === 'repairs') return repairsView(p, h);
       const t = p.tenant;
+      const iss = RentUKLib.issueSummary(issues, p.id, todayIso());
       const others = properties.length - 1;
       return `
         <div class="prop-head glass">
@@ -414,6 +422,11 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="tile-body"><small>Tenant</small><strong>${t && t.name ? esc(t.name) : 'Add tenant'}</strong>
               <span>${t && t.rentAmount ? money(t.rentAmount) + ' a month' : 'Name, contact, rent'}</span></span>
           </button>
+          <button class="tile tile-sky" data-action="repairs">
+            ${chip('wrench', 'glass', iss.urgent ? 'ichip-warn' : '')}
+            <span class="tile-body"><small>Repairs</small><strong class="${iss.urgent ? 't-bad' : ''}">${iss.open ? `${iss.open} open` : 'None open'}</strong>
+              <span>${iss.urgent ? `${iss.urgent} urgent` : iss.open ? esc(iss.first.title) : 'Report an issue'}</span></span>
+          </button>
           <button class="tile tile-sky" data-action="move-in">
             ${chip('clipboard', 'glass')}
             <span class="tile-body"><small>Move-in pack</small><strong>Checklist</strong><span>Print or save as PDF</span></span>
@@ -421,11 +434,7 @@ document.addEventListener('DOMContentLoaded', function() {
           <button class="tile tile-sky" data-action="properties">
             ${chip('house', 'glass')}
             <span class="tile-body"><small>Portfolio</small><strong>${properties.length} ${properties.length === 1 ? 'property' : 'properties'}</strong>
-              <span>${others ? 'Switch property' : 'Add another'}</span></span>
-          </button>
-          <button class="tile tile-sky" data-action="add-property">
-            ${chip('plus', 'glass')}
-            <span class="tile-body"><small>Grow</small><strong>Add property</strong><span>About a minute</span></span>
+              <span>${others ? 'Switch or add' : 'Add another'}</span></span>
           </button>
         </div>`;
     }
@@ -471,6 +480,94 @@ document.addEventListener('DOMContentLoaded', function() {
       <span class="row-text"><strong>${esc(ukDate(x.date))}</strong><small>${esc(x.note || 'Rent payment')}</small></span>
       <span class="amount amount-in">+${money2(x.amount)}</span>
     </button>`;
+
+  // ---- Repairs ----
+  const ISSUE_TONE = { open: 'warn', quoted: 'warn', booked: 'info', done: 'ok' };
+  function repairsView(p, h) {
+    const list = RentUKLib.sortIssues(issues.filter(i => i.propertyId === p.id));
+    const iss = RentUKLib.issueSummary(issues, p.id, todayIso());
+    const row = i => `
+      <button class="row issue-row ${i.status === 'done' ? 'done' : ''}" data-action="issue" data-id="${esc(i.id)}">
+        <span class="prio prio-${esc(i.priority)}" aria-hidden="true"></span>
+        <span class="row-text"><strong>${esc(i.title)}</strong>
+          <small>${esc(RentUKLib.ISSUE_PRIORITY[i.priority])} · <span class="st st-${ISSUE_TONE[i.status]}">${esc(RentUKLib.ISSUE_STATUS[i.status])}</span>${i.reported ? ' · ' + esc(ukDate(i.reported)) : ''}</small></span>
+        ${i.status === 'done' && i.cost != null ? `<span class="amount">${money2(i.cost)}</span>` : i.quote != null ? `<span class="amount muted" title="Quote">${money2(i.quote)}</span>` : ''}
+      </button>`;
+    return `
+      <div class="screen-head">
+        <button class="icon-btn" data-action="prop-back" aria-label="Back to property">${ICON.back}</button>
+        <div class="grow"><h2>Repairs</h2><p>${iss.open ? `${iss.open} open${iss.urgent ? ` · ${iss.urgent} urgent` : ''}` : 'Nothing open'} · ${esc(p.name)}</p></div>
+      </div>
+      <button class="fab" data-action="add-issue" aria-label="Report a repair">${ICON.plus}</button>
+      ${list.length ? pager('issues', list, h, 200, 70, row) : `
+        <div class="empty-card glass">${chip('wrench', 'indigo')}<h2>No repairs logged</h2>
+          <p>When something needs fixing, log it here. Track the quote, the contractor and the cost, and see the full history later.</p>
+          <button class="btn" data-action="add-issue">Report a repair</button></div>`}`;
+  }
+
+  function issueSheet(p, existing) {
+    if (!p) return;
+    const i = existing || { title: '', detail: '', priority: 'soon', status: 'open', contractor: '', quote: null, cost: null, reported: todayIso(), doneOn: '' };
+    let pr = i.priority, st = i.status;
+    const seg = (name, map, cur) => `<div class="seg seg-${Object.keys(map).length}" role="group" aria-label="${name}">${Object.entries(map)
+      .map(([k, label]) => `<button data-${name}="${k}" class="${k === cur ? 'on' : ''}" aria-pressed="${k === cur}">${label}</button>`).join('')}</div>`;
+    openSheet(existing ? 'Repair' : 'Report a repair', `
+      ${field('i-title', 'What needs fixing?', 'text', i.title, 'maxlength="80" placeholder="Boiler not heating water" autocomplete="off"')}
+      <label class="field" for="i-detail"><span>Details (optional)</span><textarea id="i-detail" rows="2" maxlength="400" placeholder="What the tenant said, access, photos taken…">${esc(i.detail)}</textarea></label>
+      <div class="field"><span>How urgent?</span>${seg('prio', RentUKLib.ISSUE_PRIORITY, pr)}</div>
+      ${existing ? `
+      <div class="field"><span>Status</span>${seg('stat', RentUKLib.ISSUE_STATUS, st)}</div>
+      ${field('i-contractor', 'Contractor (optional)', 'text', i.contractor, 'maxlength="80" autocomplete="off"')}
+      <div class="field-row">
+        ${field('i-quote', 'Quote (£)', 'number', i.quote, 'inputmode="decimal" step="0.01" min="0"')}
+        ${field('i-cost', 'Final cost (£)', 'number', i.cost, 'inputmode="decimal" step="0.01" min="0"')}
+      </div>
+      <div class="field-row">
+        ${field('i-reported', 'Reported', 'date', i.reported, `max="${todayIso()}"`)}
+        ${field('i-done', 'Done on', 'date', i.doneOn, `max="${todayIso()}"`)}
+      </div>
+      <p class="fine">When it’s done, the final cost is added to this property’s costs for you.</p>` : ''}
+      <div class="sheet-actions">
+        ${existing ? '<button class="btn btn-quiet" id="i-del">Delete</button>' : ''}
+        <button class="btn" id="i-save">${existing ? 'Save' : 'Log repair'}</button>
+      </div>`, s => {
+      const pick = (attr, set) => s.querySelectorAll(`[data-${attr}]`).forEach(b => b.onclick = () => {
+        set(b.dataset[attr]);
+        s.querySelectorAll(`[data-${attr}]`).forEach(o => { o.classList.toggle('on', o === b); o.setAttribute('aria-pressed', o === b); });
+        if (attr === 'stat' && b.dataset.stat === 'done' && !s.querySelector('#i-done').value) s.querySelector('#i-done').value = todayIso();
+      });
+      pick('prio', v => { pr = v; });
+      pick('stat', v => { st = v; });
+      if (existing) s.querySelector('#i-del').onclick = () => {
+        issues = issues.filter(x => x !== existing);
+        expenses = expenses.filter(e => e.issueId !== existing.id);
+        saveData(); closeSheet(); render();
+      };
+      s.querySelector('#i-save').onclick = () => {
+        const title = s.querySelector('#i-title').value.trim();
+        if (!title) return sheetError(s, 'Say what needs fixing.');
+        const num = id => { const el = s.querySelector(id); const n = el && el.value !== '' ? Math.round(parseFloat(el.value) * 100) / 100 : null; return Number.isFinite(n) && n >= 0 ? n : null; };
+        const next = { title, detail: s.querySelector('#i-detail').value.trim(), priority: pr };
+        if (existing) Object.assign(next, { status: st, contractor: s.querySelector('#i-contractor').value.trim(), quote: num('#i-quote'), cost: num('#i-cost'),
+          reported: s.querySelector('#i-reported').value || i.reported, doneOn: st === 'done' ? (s.querySelector('#i-done').value || todayIso()) : '' });
+        let rec = existing;
+        if (existing) Object.assign(existing, next);
+        else { rec = { id: 'iss_' + Date.now(), propertyId: p.id, status: 'open', contractor: '', quote: null, cost: null, reported: todayIso(), doneOn: '', ...next }; issues.push(rec); }
+        syncRepairCost(p, rec);
+        saveData(); closeSheet(); screen = 'property'; propView = 'repairs'; render();
+      };
+    });
+  }
+
+  // A finished repair with a cost becomes one linked cost record (kept in step if edited, removed if reopened).
+  function syncRepairCost(p, rec) {
+    const linked = expenses.find(e => e.issueId === rec.id);
+    if (rec.status === 'done' && rec.cost != null && rec.cost > 0) {
+      const data = { description: rec.title + (rec.contractor ? ' (' + rec.contractor + ')' : ''), amount: rec.cost, date: rec.doneOn || todayIso(), category: 'repairs' };
+      if (linked) Object.assign(linked, data);
+      else expenses.push({ id: Date.now(), propertyId: p.id, issueId: rec.id, ...data });
+    } else if (linked) expenses = expenses.filter(e => e !== linked);
+  }
 
   function paymentSheet(p, existing) {
     if (!p) return;
@@ -547,6 +644,10 @@ document.addEventListener('DOMContentLoaded', function() {
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
       'add-payment': () => paymentSheet(p),
+      repairs: () => { screen = 'property'; propView = 'repairs'; render(true); },
+      'prop-back': () => { propView = 'main'; render(true); },
+      'add-issue': () => issueSheet(p),
+      issue: () => issueSheet(p, issues.find(x => String(x.id) === t.dataset.id)),
       payment: () => paymentSheet(p, payments.find(x => String(x.id) === t.dataset.id)),
       expense: () => expenseSheet(p, expenses.find(x => String(x.id) === t.dataset.id)),
       'add-date': () => dateSheet(),
@@ -770,6 +871,7 @@ document.addEventListener('DOMContentLoaded', function() {
         expenses = expenses.filter(e => e.propertyId !== p.id);
         aobReminders = aobReminders.filter(a => a.propertyId !== p.id);
         payments = payments.filter(x => x.propertyId !== p.id);
+        issues = issues.filter(x => x.propertyId !== p.id);
         currentPropertyId = properties.length ? properties[0].id : null;
         Object.keys(pageAt).forEach(k => delete pageAt[k]);
         saveData(); closeSheet(); screen = 'home'; render(true);
@@ -1079,12 +1181,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     ];
     aobReminders = asList(readJson(store, 'aobReminders', []), []);
     payments = asList(readJson(store, 'payments', []), []);
+    issues = asList(readJson(store, 'issues', []), []);
   }
 
   // Save local data
   function saveLocalData() {
     const result = writeAll(store, {
-      expenses, properties, reminders, aobReminders, payments,
+      expenses, properties, reminders, aobReminders, payments, issues,
       currentPropertyId: currentPropertyId === null ? '' : String(currentPropertyId)
     });
     if (!result.ok && !storageWarned) {
@@ -1105,7 +1208,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
 
   // Export data functionality
   function exportData() {
-    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments }, null, 2);
+    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments, issues }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
 
     const exportFileDefaultName = `rentuk-backup-${new Date().toISOString().slice(0,10)}.json`;
@@ -1147,6 +1250,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         reminders = importedData.reminders || reminders;
         aobReminders = importedData.aobReminders || aobReminders;
         payments = importedData.payments || payments;
+        issues = importedData.issues || issues;
         saveData();
         showCustomAlert(result.skipped > 0
           ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
@@ -1179,7 +1283,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         const d = result.data;
         const count = (list, one, many) => list ? `${list.length} ${list.length === 1 ? one : many}` : null;
         const incoming = [count(d.properties, 'property', 'properties'), count(d.expenses, 'cost', 'costs'),
-          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates'), count(d.payments, 'rent payment', 'rent payments')].filter(Boolean).join(', ');
+          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates'), count(d.payments, 'rent payment', 'rent payments'), count(d.issues, 'repair', 'repairs')].filter(Boolean).join(', ');
         openSheet('Replace your data?', `
           <p class="story">This file holds ${esc(incoming)}. Restoring replaces what you have now (${properties.length} ${properties.length === 1 ? 'property' : 'properties'}, ${expenses.length} costs). Save a backup first if you may want it back.</p>
           <div class="sheet-actions"><button class="btn btn-quiet" id="imp-no">Cancel</button><button class="btn" id="imp-yes">Replace my data</button></div>`, s => {
