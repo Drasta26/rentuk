@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let payments = asList(readJson(store, 'payments', []), []);
   // Maintenance issues (repairs) per property.
   let issues = asList(readJson(store, 'issues', []), []);
+  // Document list (the files themselves are in IndexedDB, see files.js).
+  let documents = asList(readJson(store, 'documents', []), []);
 
   // Get current property
   function getCurrentProperty() {
@@ -126,6 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
     video: svg('<rect x="3" y="6" width="13" height="12" rx="3"/><path d="M16 10.5l5-3v9l-5-3z"/>'),
     mic: svg('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>'),
     send: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
+    doc: svg('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>'),
+    report: svg('<rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 16v-3M12 16V9M16 16v-5"/>'),
     pencil: svg('<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>'),
     pin: svg('<path d="M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/>'),
     menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
@@ -425,6 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     property(p, h) {
       if (propView === 'repairs') return repairsView(p, h);
+      if (propView === 'docs') return docsView(p, h);
+      const docCount = documents.filter(d => d.propertyId === p.id).length;
       const t = p.tenant;
       const iss = RentUKLib.issueSummary(issues, p.id, todayIso());
       const others = properties.length - 1;
@@ -448,6 +454,11 @@ document.addEventListener('DOMContentLoaded', function() {
             ${chip('wrench', 'glass', iss.urgent ? 'ichip-warn' : '')}
             <span class="tile-body"><small>Repairs</small><strong class="${iss.urgent ? 't-bad' : ''}">${iss.open ? `${iss.open} open` : 'None open'}</strong>
               <span>${iss.urgent ? `${iss.urgent} urgent` : iss.open ? esc(iss.first.title) : 'Report an issue'}</span></span>
+          </button>
+          <button class="tile tile-sky" data-action="docs">
+            ${chip('doc', 'glass')}
+            <span class="tile-body"><small>Documents</small><strong>${docCount ? `${docCount} ${docCount === 1 ? 'file' : 'files'}` : 'None yet'}</strong>
+              <span>${docCount ? 'Certificates, agreements' : 'Add a certificate'}</span></span>
           </button>
           <button class="tile tile-sky" data-action="move-in">
             ${chip('clipboard', 'glass')}
@@ -581,6 +592,106 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // ---- Documents ----
+  // Demo mode keeps files in memory only, so it never reads or changes the visitor's real files.
+  const demoFiles = new Map();
+  const memFiles = { put: async (id, b) => { demoFiles.set(id, b); }, get: async id => demoFiles.get(id), remove: async id => { demoFiles.delete(id); }, clear: async () => demoFiles.clear() };
+  const fileStore = () => isDemo ? memFiles : (window.RentUKFiles || null);
+  const sizeText = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  function docsView(p, h) {
+    const list = documents.filter(d => d.propertyId === p.id).sort((a, b) => String(b.added).localeCompare(String(a.added)));
+    const row = d => `
+      <button class="row" data-action="doc" data-id="${esc(d.id)}">
+        ${chip(d.mime.startsWith('image/') ? 'sparkle' : 'doc', 'sky', 'ichip-sm')}
+        <span class="row-text"><strong>${esc(d.name)}</strong><small>${esc(RentUKLib.DOC_TYPES[d.type])} · ${esc(ukDate(d.added))} · ${sizeText(d.size)}</small></span>
+        ${ICON.chevron}
+      </button>`;
+    return `
+      <div class="screen-head">
+        <button class="icon-btn" data-action="prop-back" aria-label="Back to property">${ICON.back}</button>
+        <div class="grow"><h2>Documents</h2><p>${list.length} ${list.length === 1 ? 'file' : 'files'} · ${esc(p.name)}</p></div>
+      </div>
+      <button class="fab" data-action="add-doc" aria-label="Add a document">${ICON.plus}</button>
+      ${list.length ? pager('docs', list, h, 230, 70, row) : `
+        <div class="empty-card glass">${chip('doc', 'indigo')}<h2>Keep your paperwork here</h2>
+          <p>Gas and electrical certificates, the EPC, tenancy terms, deposit certificate, inventory and receipts. Stored only on this device.</p>
+          <button class="btn" data-action="add-doc">Add a document</button></div>`}
+      <p class="fine">Files stay in this browser only. Backup files list your documents but don’t contain them, so keep the originals too.</p>`;
+  }
+
+  function docSheet(p) {
+    if (!fileStore()) return showCustomAlert('This browser can’t store files. Try Safari, Chrome or Edge.', 'Files unavailable');
+    openSheet('Add a document', `
+      <label class="field" for="dc-file"><span>File (PDF or photo, up to 10 MB)</span><input id="dc-file" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
+      ${field('dc-name', 'Name', 'text', '', 'maxlength="120" autocomplete="off" placeholder="Gas safety record 2026"')}
+      <label class="field" for="dc-type"><span>Type</span><select id="dc-type">${Object.entries(RentUKLib.DOC_TYPES).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('')}</select></label>
+      <div class="dc-check" hidden>${field('dc-date', 'Date of the check (updates your checklist)', 'date', '', `max="${todayIso()}"`)}</div>
+      <div class="sheet-actions"><button class="btn" id="dc-save">Add document</button></div>`, s => {
+      const type = s.querySelector('#dc-type'), file = s.querySelector('#dc-file'), name = s.querySelector('#dc-name');
+      const certs = ['gas', 'eicr', 'epc'];
+      const sync = () => { s.querySelector('.dc-check').hidden = !certs.includes(type.value); };
+      name.addEventListener('input', () => { name.dataset.auto = ''; });
+      type.onchange = sync; sync();
+      file.onchange = () => {
+        const f = file.files[0]; if (!f) return;
+        if (!name.value || name.dataset.auto === '1') { name.value = f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 120); name.dataset.auto = '1'; }
+        const guess = /gas|cp12/i.test(f.name) ? 'gas' : /eicr|electric/i.test(f.name) ? 'eicr' : /epc|energy/i.test(f.name) ? 'epc' : /tenan|agreement|contract/i.test(f.name) ? 'tenancy' : /deposit/i.test(f.name) ? 'deposit' : /inventory/i.test(f.name) ? 'inventory' : /invoice|receipt/i.test(f.name) ? 'invoice' : f.type.startsWith('image/') ? 'photo' : 'other';
+        type.value = guess; sync();
+      };
+      s.querySelector('#dc-save').onclick = async () => {
+        const f = file.files[0];
+        const ok = RentUKLib.docFileOk(f);
+        if (!ok.ok) return sheetError(s, ok.error);
+        const checkDate = certs.includes(type.value) ? s.querySelector('#dc-date').value : '';
+        if (checkDate && checkDate > todayIso()) return sheetError(s, 'The check date can’t be in the future.');
+        const doc = RentUKLib.cleanDoc({ id: 'doc_' + Date.now(), propertyId: p.id, name: name.value.trim() || f.name, type: type.value, mime: f.type, size: f.size, added: todayIso() });
+        s.querySelector('#dc-save').disabled = true;
+        try { await fileStore().put(doc.id, f); }
+        catch (e) { s.querySelector('#dc-save').disabled = false; return sheetError(s, 'Couldn’t save the file: this browser’s storage may be full or blocked.'); }
+        documents.push(doc);
+        if (checkDate && checksFor(p).items.some(i => i.key === type.value)) {
+          p.compliance = { ...(p.compliance || {}), [type.value]: checkDate };
+        }
+        saveData(); closeSheet(); screen = 'property'; propView = 'docs'; render();
+      };
+    });
+  }
+
+  function docOpenSheet(p, d) {
+    if (!d) return;
+    openSheet(esc(d.name), `
+      <p class="sheet-lead"><span>${esc(RentUKLib.DOC_TYPES[d.type])} · added ${esc(ukDate(d.added))} · ${sizeText(d.size)}</span></p>
+      <div class="stack">
+        <button class="btn" id="do-open">${ICON.doc}Open</button>
+        <button class="btn btn-ghost" id="do-save">${ICON.down}Save a copy</button>
+        <button class="btn btn-quiet" id="do-del">Delete</button>
+      </div>`, s => {
+      const withFile = async fn => {
+        try {
+          const blob = fileStore() && await fileStore().get(d.id);
+          if (!blob) return showCustomAlert('This file isn’t in this browser. It may have been added on another device or before a restore.', 'File not found');
+          // Re-type the blob so it can only open as the PDF or image it was saved as.
+          fn(URL.createObjectURL(new Blob([blob], { type: RentUKLib.DOC_MIME.includes(d.mime) ? d.mime : 'application/octet-stream' })));
+        } catch (e) { showCustomAlert('Couldn’t open the file storage in this browser.', 'File not available'); }
+      };
+      s.querySelector('#do-open').onclick = () => withFile(url => { const w = window.open(url, '_blank', 'noopener'); if (!w) location.href = url; setTimeout(() => URL.revokeObjectURL(url), 60000); });
+      s.querySelector('#do-save').onclick = () => withFile(url => {
+        const a = document.createElement('a'); a.href = url; a.download = d.name.replace(/[^\w .-]+/g, '_') + (d.mime === 'application/pdf' ? '.pdf' : '.' + d.mime.split('/')[1]);
+        document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      });
+      s.querySelector('#do-del').onclick = () => {
+        openSheet('Delete this document?', `<p class="story">${esc(d.name)} will be removed from this device. This can’t be undone.</p>
+          <div class="sheet-actions"><button class="btn btn-quiet" id="dd-no">Cancel</button><button class="btn btn-danger" id="dd-yes">Delete</button></div>`, s2 => {
+          s2.querySelector('#dd-no').onclick = () => docOpenSheet(p, d);
+          s2.querySelector('#dd-yes').onclick = async () => {
+            try { await fileStore().remove(d.id); } catch (e) { /* the list entry still goes */ }
+            documents = documents.filter(x => x !== d); saveData(); closeSheet(); render();
+          };
+        });
+      };
+    });
+  }
+
   // A finished repair with a cost becomes one linked cost record (kept in step if edited, removed if reopened).
   function syncRepairCost(p, rec) {
     const linked = expenses.find(e => e.issueId === rec.id);
@@ -679,6 +790,9 @@ document.addEventListener('DOMContentLoaded', function() {
       repairs: () => { screen = 'property'; propView = 'repairs'; render(true); },
       'prop-back': () => { propView = 'main'; render(true); },
       'add-issue': () => issueSheet(p),
+      docs: () => { screen = 'property'; propView = 'docs'; render(true); },
+      'add-doc': () => docSheet(p),
+      doc: () => docOpenSheet(p, documents.find(x => String(x.id) === t.dataset.id)),
       issue: () => issueSheet(p, issues.find(x => String(x.id) === t.dataset.id)),
       payment: () => paymentSheet(p, payments.find(x => String(x.id) === t.dataset.id)),
       expense: () => expenseSheet(p, expenses.find(x => String(x.id) === t.dataset.id)),
@@ -981,6 +1095,8 @@ document.addEventListener('DOMContentLoaded', function() {
         aobReminders = aobReminders.filter(a => a.propertyId !== p.id);
         payments = payments.filter(x => x.propertyId !== p.id);
         issues = issues.filter(x => x.propertyId !== p.id);
+        documents.filter(d => d.propertyId === p.id).forEach(d => fileStore() && fileStore().remove(d.id).catch(() => {}));
+        documents = documents.filter(d => d.propertyId !== p.id);
         currentPropertyId = properties.length ? properties[0].id : null;
         Object.keys(pageAt).forEach(k => delete pageAt[k]);
         saveData(); closeSheet(); screen = 'home'; render(true);
@@ -1325,12 +1441,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     aobReminders = asList(readJson(store, 'aobReminders', []), []);
     payments = asList(readJson(store, 'payments', []), []);
     issues = asList(readJson(store, 'issues', []), []);
+    documents = asList(readJson(store, 'documents', []), []);
   }
 
   // Save local data
   function saveLocalData() {
     const result = writeAll(store, {
-      expenses, properties, reminders, aobReminders, payments, issues,
+      expenses, properties, reminders, aobReminders, payments, issues, documents,
       currentPropertyId: currentPropertyId === null ? '' : String(currentPropertyId)
     });
     if (!result.ok && !storageWarned) {
@@ -1351,7 +1468,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
 
   // Export data functionality
   function exportData() {
-    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments, issues }, null, 2);
+    const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments, issues, documents }, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
 
     const exportFileDefaultName = `rentuk-backup-${new Date().toISOString().slice(0,10)}.json`;
@@ -1394,6 +1511,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         aobReminders = importedData.aobReminders || aobReminders;
         payments = importedData.payments || payments;
         issues = importedData.issues || issues;
+        documents = importedData.documents || documents;
         saveData();
         showCustomAlert(result.skipped > 0
           ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
@@ -1426,7 +1544,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         const d = result.data;
         const count = (list, one, many) => list ? `${list.length} ${list.length === 1 ? one : many}` : null;
         const incoming = [count(d.properties, 'property', 'properties'), count(d.expenses, 'cost', 'costs'),
-          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates'), count(d.payments, 'rent payment', 'rent payments'), count(d.issues, 'repair', 'repairs')].filter(Boolean).join(', ');
+          count(d.reminders, 'date', 'dates'), count(d.aobReminders, 'extra date', 'extra dates'), count(d.payments, 'rent payment', 'rent payments'), count(d.issues, 'repair', 'repairs'), count(d.documents, 'document listed', 'documents listed')].filter(Boolean).join(', ');
         openSheet('Replace your data?', `
           <p class="story">This file holds ${esc(incoming)}. Restoring replaces what you have now (${properties.length} ${properties.length === 1 ? 'property' : 'properties'}, ${expenses.length} costs). Save a backup first if you may want it back.</p>
           <div class="sheet-actions"><button class="btn btn-quiet" id="imp-no">Cancel</button><button class="btn" id="imp-yes">Replace my data</button></div>`, s => {
@@ -1872,6 +1990,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     overlay.querySelector('#delete-cancel').onclick = () => overlay.remove();
     go.onclick = () => {
       const result = RentUKLib.clearAll(store);
+      if (!isDemo && fileStore()) fileStore().clear().catch(() => {});
       overlay.remove();
       if (!result.ok) { showCustomAlert('This browser blocked the delete. Clear this site\'s data in your browser settings instead.', 'Not deleted'); return; }
       // Reload so every screen starts empty; demo mode leaves to a clean, real start.

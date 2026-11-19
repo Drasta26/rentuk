@@ -262,6 +262,30 @@
     };
   }
 
+  // ---- Documents: the list lives with the other records; the files themselves stay in this browser's IndexedDB ----
+  const DOC_TYPES = {
+    gas: 'Gas safety record', eicr: 'Electrical report', epc: 'Energy certificate (EPC)', tenancy: 'Tenancy agreement or terms',
+    deposit: 'Deposit certificate', inventory: 'Inventory', id: 'Right to Rent / ID check', licence: 'Licence or registration',
+    insurance: 'Insurance', invoice: 'Invoice or receipt', photo: 'Photo', other: 'Other'
+  };
+  // Only PDFs and common photos. No HTML, SVG or other types that could run script when opened.
+  const DOC_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const MAX_DOC_BYTES = 10 * 1024 * 1024;
+  function docFileOk(file) {
+    if (!file) return { ok: false, error: 'Choose a file first.' };
+    if (!DOC_MIME.includes(file.type)) return { ok: false, error: 'Only PDF files and photos (JPEG, PNG, WebP, HEIC) can be added.' };
+    if (file.size > MAX_DOC_BYTES) return { ok: false, error: 'That file is over 10 MB. Try a smaller scan or photo.' };
+    if (!file.size) return { ok: false, error: 'That file is empty.' };
+    return { ok: true };
+  }
+  function cleanDoc(d) {
+    return {
+      id: d.id, propertyId: idOrNull(d.propertyId), name: text(d.name).slice(0, 120) || 'Document',
+      type: Object.hasOwn(DOC_TYPES, d.type) ? d.type : 'other', mime: DOC_MIME.includes(d.mime) ? d.mime : '',
+      size: Number.isFinite(Number(d.size)) ? Math.max(0, Math.round(Number(d.size))) : 0, added: date(d.added), expires: date(d.expires)
+    };
+  }
+
   // ---- CSV for an accountant. Cells that start like a formula are made literal (spreadsheet formula injection). ----
   function csvCell(v) {
     let t = v === null || v === undefined ? '' : String(v);
@@ -398,12 +422,12 @@
       return { ok: false, error: 'Backup file is not a RentUK backup.' };
     }
     const list = (k) => (Array.isArray(raw[k]) ? raw[k].filter(x => x && typeof x === 'object' && isSafeId(x.id)) : null);
-    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders'), pays = list('payments'), iss = list('issues');
-    if (!props && !exps && !rems && !aobs && !pays && !iss) {
+    const props = list('properties'), exps = list('expenses'), rems = list('reminders'), aobs = list('aobReminders'), pays = list('payments'), iss = list('issues'), docs = list('documents');
+    if (!props && !exps && !rems && !aobs && !pays && !iss && !docs) {
       return { ok: false, error: 'Backup file has no RentUK data.' };
     }
     const data = {};
-    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues']
+    let skipped = ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues', 'documents']
       .reduce((n, k) => n + (Array.isArray(raw[k]) ? raw[k].length : 0), 0);
     if (props) data.properties = props.map(p => ({
       id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address), nation: nationOf(p),
@@ -427,8 +451,9 @@
       .map(x => ({ id: x.id, propertyId: idOrNull(x.propertyId), date: date(x.date), amount: parseFloat(x.amount), note: text(x.note) }))
       .filter(x => Number.isFinite(x.amount) && x.amount >= 0 && x.date && x.propertyId);
     if (iss) data.issues = iss.map(cleanIssue).filter(i => i.propertyId);
+    if (docs) data.documents = docs.map(cleanDoc).filter(d => d.propertyId && d.mime);
     data.currentPropertyId = idOrNull(raw.currentPropertyId);
-    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues']) skipped -= data[k] ? data[k].length : 0;
+    for (const k of ['properties', 'expenses', 'reminders', 'aobReminders', 'payments', 'issues', 'documents']) skipped -= data[k] ? data[k].length : 0;
     return { ok: true, data, skipped };
   }
 
@@ -463,7 +488,7 @@
   }
 
   // Every key RentUK keeps in this browser. Other apps on the same site keep their own keys, so only these are cleared.
-  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
+  const DATA_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'documents', 'currentPropertyId', 'rentukInstallHintDismissed', 'rentukLastBackup', 'rentukBackupSnooze'];
 
   // Remove all RentUK keys; returns { ok } instead of throwing when storage is blocked.
   function clearAll(storage, keys = DATA_KEYS) {
@@ -485,7 +510,7 @@
   }
 
   // True when another tab erased RentUK data, so this tab must reload instead of writing its stale copy back.
-  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'currentPropertyId'];
+  const SAVED_KEYS = ['expenses', 'properties', 'reminders', 'aobReminders', 'payments', 'issues', 'documents', 'currentPropertyId'];
   function erasedElsewhere(e, storage) {
     if (!e || e.storageArea !== storage) return false;
     return e.key === null || (SAVED_KEYS.includes(e.key) && e.newValue === null);
@@ -500,7 +525,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { depositCheck, addWorkingDays, cleanTenant, STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { DOC_TYPES, DOC_MIME, MAX_DOC_BYTES, docFileOk, cleanDoc, depositCheck, addWorkingDays, cleanTenant, STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 
