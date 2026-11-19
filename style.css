@@ -788,3 +788,41 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .tpanel { display: flex; flex-direction: column; gap: 12px; }
 .tpanel[hidden] { display: none; }
 .dep-live:empty { display: none; }
+
+/* ---- Iteration 9: short phones keep everything on one screen ---- */
+@media (max-height: 760px) {
+  .screen-property .tiles { gap: 8px; }
+  .screen-property .tile { flex-direction: row; align-items: center; min-height: 0; padding: 10px 12px; gap: 10px; }
+  .screen-property .tile .ichip { width: 36px; height: 36px; }
+  .screen-property .tile-body > span { display: none; }
+  .screen-property .prop-head { padding: 12px 14px; }
+  .screen-property .prop-head h2 { font-size: 1.15rem; }
+  .screen-money { gap: 8px; }
+  .rent-card { padding: 12px 14px; gap: 8px; }
+  .rent-card strong { font-size: 1.4rem; }
+  .screen-money .stat { padding: 9px 10px; }
+}
+.measuring, .measuring * { animation: none !important; transition: none !important; }
+@media (max-height: 700px) {
+  .screen-home { gap: 8px; }
+  .screen-home .hello h2 { font-size: 1.35rem; }
+  .home-stats .stat { padding: 8px 10px; gap: 2px; }
+  .home-stats .stat span { display: none; }
+}
+/* Very small phones (iPhone SE first generation): compact further; anything left can scroll rather than be cut off. */
+@media (max-height: 620px) {
+  .screen { gap: 8px; }
+  .screen-money .fine, .empty-card p, .screen-property .prop-head p { display: none; }
+  .rent-card { flex-direction: row; align-items: center; }
+  .rent-card .btn { min-height: 44px; padding: 0 12px; font-size: 0.88rem; }
+  .rent-card strong { font-size: 1.2rem; }
+  .screen-money .stat small { font-size: 0.6rem; }
+  .screen-money .stat strong { font-size: 0.95rem; }
+  .screen-property .tile { padding: 8px 10px; }
+  .screen-property .tile .ichip { width: 30px; height: 30px; border-radius: 10px; }
+  .screen-property .tile .ichip svg { width: 18px; height: 18px; }
+  .screen-property .tile-body strong { font-size: 0.92rem; }
+  .screen-property .nation-pill { margin-top: 4px; }
+  .empty-card { padding: 14px; gap: 6px; }
+  .bands span { font-size: 0.8rem; }
+}

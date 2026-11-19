@@ -321,7 +321,10 @@
       lines.push('BEGIN:VEVENT', `UID:${icsText(e.uid)}@rentuk`, `DTSTAMP:${stamp}`,
         `DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${next}`, `SUMMARY:${icsText(e.title)}`);
       if (e.description) lines.push(`DESCRIPTION:${icsText(e.description)}`);
-      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.title)}`, 'TRIGGER:-P14D', 'END:VALARM', 'END:VEVENT');
+      // Only simple monthly repeats are allowed (used for rent due dates).
+      if (e.rrule && /^FREQ=MONTHLY;BYMONTHDAY=(-1|[1-9]|1\d|2[0-8])$/.test(e.rrule)) lines.push(`RRULE:${e.rrule}`);
+      const alarm = Number.isInteger(e.alarmDays) && e.alarmDays >= 0 && e.alarmDays <= 60 ? e.alarmDays : 14;
+      lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.title)}`, `TRIGGER:-P${alarm}D`, 'END:VALARM', 'END:VEVENT');
     }
     lines.push('END:VCALENDAR');
     return lines.join('\r\n') + '\r\n';

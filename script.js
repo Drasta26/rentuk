@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function initApp() {
     loadLocalData();
     loadMainUI();
-    if (isDemo) showDemoBanner();
+    if (isDemo) { showDemoBanner(); render(); }
     else if (params.has('setup') && !properties.length) showSetupWizard();
     else if (storageMissing) showCustomAlert('This browser is blocking storage, so nothing you enter will be kept after you close the page. Try a normal (not private) window.', 'Storage unavailable');
     else setTimeout(maybeRemindBackup, 1500);
@@ -190,7 +190,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('.prop-chip').hidden = !p;
     document.querySelector('.menu-btn').hidden = !p;
     main.className = 'screen screen-' + (p ? screen : 'welcome');
-    main.innerHTML = p ? SCREENS[screen](p, main.clientHeight) : welcomeScreen();
+    // Lists start optimistic (extra rows), then the fit check below trims them to exactly what fits.
+    main.innerHTML = p ? SCREENS[screen](p, main.clientHeight + 240) : welcomeScreen();
+    // No scrolling: if the screen still overflows (bigger text, small phone), page lists with fewer rows.
+    // Measured with animations paused, because entrance animations shift content while they run.
+    if (p) {
+      main.classList.add('measuring');
+      let h = main.clientHeight + 240;
+      for (let i = 0; i < 8 && main.scrollHeight > main.clientHeight + 1 && main.querySelector('.pager, .list'); i++) {
+        h -= (main.scrollHeight - main.clientHeight) + 4;
+        main.innerHTML = SCREENS[screen](p, h);
+      }
+      main.classList.remove('measuring');
+    }
     document.querySelectorAll('.tabbar button').forEach(b => {
       const on = b.dataset.tab === screen;
       b.classList.toggle('active', on);
@@ -202,7 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // How many rows fit in the space left, so lists page instead of scroll.
   function pager(key, items, height, reserved, rowH, renderRow) {
-    const per = Math.max(2, Math.floor((height - reserved) / rowH));
+    const per = Math.max(1, Math.floor((height - reserved) / rowH));
     const pages = Math.max(1, Math.ceil(items.length / per));
     const at = Math.min(pageAt[key] || 0, pages - 1);
     pageAt[key] = at;
@@ -400,8 +412,8 @@ document.addEventListener('DOMContentLoaded', function() {
       if (moneyView === 'tax') {
         const est = RentUKLib.rentalEstimate(properties, expenses, start);
         return `${seg}
-          <h2 class="sub-h">Tax year ${esc(est.taxYear.label)} · all properties · estimate</h2>
-          <p class="fine">Rent received so far (recorded): <strong>${money2(RentUKLib.received(payments, est.taxYear.start, todayIso()))}</strong>. The estimate below projects the full year from rent and lease dates.</p>
+          <h2 class="sub-h">Tax year ${esc(est.taxYear.label)} · all properties</h2>
+          <p class="fine">Received so far: <strong>${money2(RentUKLib.received(payments, est.taxYear.start, todayIso()))}</strong>. Below: full-year estimate.</p>
           <div class="stats">
             <div class="stat"><small>Rent (full year)</small><strong>${money(est.income)}</strong></div>
             <div class="stat"><small>${est.useAllowance ? 'Allowance' : 'Costs'}</small><strong>−${money(est.useAllowance ? Math.min(1000, est.income) : est.costs)}</strong></div>
@@ -1698,6 +1710,14 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         const prop = r.propertyId ? properties.find(x => x.id === r.propertyId) : null;
         events.push({ uid: `reminder-${r.id}-${r.dueDate}`, date: r.dueDate, title: prop ? `${r.name} – ${prop.name}` : r.name });
       });
+    // Rent due every month, and any deposit protection deadline.
+    properties.forEach(p => {
+      const L = ledgerFor(p);
+      if (L.rent && L.nextDue) events.push({ uid: `rent-${p.id}`, date: L.nextDue, title: `Rent due ${money2(L.rent)} – ${p.name}`,
+        description: 'Record the payment in RentUK when it arrives.', rrule: `FREQ=MONTHLY;BYMONTHDAY=${L.day > 28 ? -1 : L.day}`, alarmDays: 1 });
+      const dep = RentUKLib.depositCheck(RentUKLib.nationOf(p), p.tenant, today);
+      if (p.tenant && dep.due && dep.deadline >= today) events.push({ uid: `deposit-${p.id}-${dep.deadline}`, date: dep.deadline, title: `Protect the deposit – ${p.name}`, alarmDays: 7 });
+    });
     if (!events.length) {
       showCustomAlert('Nothing to add yet. Add certificate dates in the Compliance Score, or reminder due dates, then try again.', 'No dates yet');
       return;
@@ -1708,7 +1728,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     a.href = url; a.download = 'rentuk-reminders.ics';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    showCustomAlert(`Saved ${events.length} date${events.length === 1 ? '' : 's'} as rentuk-reminders.ics. Open it to add them to Apple, Google or Outlook calendar — each one alerts you 14 days before.`, 'Calendar file ready');
+    showCustomAlert(`Saved ${events.length} date${events.length === 1 ? '' : 's'} as rentuk-reminders.ics. Open it to add them to Apple, Google or Outlook calendar. Renewals alert you 14 days before; rent reminders repeat monthly and alert the day before.`, 'Calendar file ready');
   }
 
   // ---- Property report (printable). Tenant details are left out unless the landlord chooses to include them. ----
@@ -2096,6 +2116,10 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     };
     input.focus();
   }
+
+  // Re-fit the current screen when the window changes size (rotation, split view, keyboard closing).
+  let resizeTimer = null;
+  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (!document.getElementById('sheet')) render(); }, 200); });
 
   // If another tab deletes all data, reload so this tab cannot write its old copy back.
   window.addEventListener('storage', e => { if (RentUKLib.erasedElsewhere(e, store)) location.reload(); });

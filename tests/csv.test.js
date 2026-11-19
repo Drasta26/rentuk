@@ -18,3 +18,13 @@ test('ledgerRows lists rent in and costs out for the date range, oldest first', 
     ['2026-04-20', 'Flat 1', 'Cost', 'repairs', 'Tap', '-120.50'],
     ['2026-05-01', 'Flat 1', 'Rent received', 'Rent', 'Rent payment', '900.00']]);
 });
+
+test('calendar events can repeat monthly for rent and set their own alert', () => {
+  const { buildIcs } = require('../lib.js');
+  const ics = buildIcs([{ uid: 'rent-p', date: '2026-12-01', title: 'Rent due', rrule: 'FREQ=MONTHLY;BYMONTHDAY=1', alarmDays: 1 },
+    { uid: 'bad', date: '2026-12-02', title: 'X', rrule: 'FREQ=SECONDLY;COUNT=999999' }], '2026-11-19T10:00:00Z');
+  assert.match(ics, /RRULE:FREQ=MONTHLY;BYMONTHDAY=1\r\n/);
+  assert.match(ics, /TRIGGER:-P1D/);
+  assert.ok(!ics.includes('SECONDLY'));
+  assert.match(ics, /TRIGGER:-P14D/);
+});
