@@ -460,6 +460,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="tile-body"><small>Documents</small><strong>${docCount ? `${docCount} ${docCount === 1 ? 'file' : 'files'}` : 'None yet'}</strong>
               <span>${docCount ? 'Certificates, agreements' : 'Add a certificate'}</span></span>
           </button>
+          <button class="tile tile-sky" data-action="report">
+            ${chip('report', 'glass')}
+            <span class="tile-body"><small>Report</small><strong>Property report</strong><span>Print, PDF or share</span></span>
+          </button>
           <button class="tile tile-sky" data-action="move-in">
             ${chip('clipboard', 'glass')}
             <span class="tile-body"><small>Move-in pack</small><strong>Checklist</strong><span>Print or save as PDF</span></span>
@@ -792,6 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
       'add-issue': () => issueSheet(p),
       docs: () => { screen = 'property'; propView = 'docs'; render(true); },
       'add-doc': () => docSheet(p),
+      report: reportSheet,
       doc: () => docOpenSheet(p, documents.find(x => String(x.id) === t.dataset.id)),
       issue: () => issueSheet(p, issues.find(x => String(x.id) === t.dataset.id)),
       payment: () => paymentSheet(p, payments.find(x => String(x.id) === t.dataset.id)),
@@ -1704,6 +1709,99 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     showCustomAlert(`Saved ${events.length} date${events.length === 1 ? '' : 's'} as rentuk-reminders.ics. Open it to add them to Apple, Google or Outlook calendar — each one alerts you 14 days before.`, 'Calendar file ready');
+  }
+
+  // ---- Property report (printable). Tenant details are left out unless the landlord chooses to include them. ----
+  function reportSheet() {
+    const many = properties.length > 1;
+    openSheet('Property report', `
+      <p class="story">A one-page summary to print, save as PDF or share with an accountant, lender or agent.</p>
+      ${many ? `<div class="seg seg-2" role="group" aria-label="Which properties">
+        <button data-rscope="one" class="on" aria-pressed="true">This property</button><button data-rscope="all" aria-pressed="false">All ${properties.length}</button></div>` : ''}
+      <label class="chat-opt"><input type="checkbox" id="r-tenant"> Include tenant names and contact details</label>
+      <p class="fine">Left unticked, the report shows no personal details, so it is safer to share.</p>
+      <div class="sheet-actions"><button class="btn" id="r-open">${ICON.report}Open report</button></div>`, s => {
+      let scope = 'one';
+      s.querySelectorAll('[data-rscope]').forEach(b => b.onclick = () => {
+        scope = b.dataset.rscope;
+        s.querySelectorAll('[data-rscope]').forEach(o => { o.classList.toggle('on', o === b); o.setAttribute('aria-pressed', o === b); });
+      });
+      s.querySelector('#r-open').onclick = () => {
+        const list = scope === 'all' ? properties : [getCurrentProperty()];
+        closeSheet();
+        openPrintWindow(`RentUK report – ${scope === 'all' ? 'all properties' : list[0].name}`, reportBody(list, s.querySelector('#r-tenant').checked));
+      };
+    });
+  }
+
+  function reportBody(list, withTenant) {
+    const today = todayIso();
+    const ty = RentUKLib.taxYear(RentUKLib.taxYearStart(today));
+    const until = today < ty.end ? today : ty.end;
+    const cell = v => `<td>${v}</td>`;
+    const sections = list.map(p => {
+      const r = checksFor(p);
+      const L = ledgerFor(p);
+      const t = p.tenant;
+      const got = RentUKLib.received(payments, ty.start, until, p.id);
+      const costs = expenses.filter(e => e.propertyId === p.id && e.date >= ty.start && e.date <= until);
+      const byCat = {};
+      costs.forEach(e => { byCat[e.category || 'other'] = (byCat[e.category || 'other'] || 0) + (Number(e.amount) || 0); });
+      const costTotal = costs.reduce((n, e) => n + (Number(e.amount) || 0), 0);
+      const iss = issues.filter(i => i.propertyId === p.id);
+      const open = iss.filter(i => i.status !== 'done');
+      const doneYear = iss.filter(i => i.status === 'done' && i.doneOn >= ty.start);
+      const dep = RentUKLib.depositCheck(RentUKLib.nationOf(p), t, today);
+      const legal = r.items.filter(i => i.legal && i.status !== 'na');
+      return `
+        <section>
+          <h2>${esc(p.name)}</h2>
+          <p class="meta">${p.address && withTenant ? esc(p.address) + ' · ' : ''}${esc(nationName(p))}${t && withTenant && t.name ? ' · Tenant: ' + esc(t.name) + (t.contact ? ' (' + esc(t.contact) + ')' : '') : t ? ' · Let' : ' · Vacant'}</p>
+          <h3>Compliance: ${legal.filter(i => i.status === 'ok').length} of ${legal.length} legal checks up to date (score ${r.score}/100)</h3>
+          <table><tr><th>Check</th><th>Status</th><th>Valid until</th><th>Type</th></tr>
+            ${r.items.map(i => `<tr class="s-${i.status}">${cell(esc(i.label))}${cell(esc(i.statusLabel) + (i.note ? ': ' + esc(i.note) : ''))}${cell(i.expires ? esc(ukDate(i.expires)) : '—')}${cell(i.legal ? 'Legal duty' : 'Good practice')}</tr>`).join('')}
+          </table>
+          <h3>Money, tax year ${esc(ty.label)} to ${esc(ukDate(until))} (actual, as recorded)</h3>
+          <table>
+            <tr><td>Rent received</td><td class="n">${money2(got)}</td></tr>
+            <tr><td>Costs</td><td class="n">−${money2(costTotal)}</td></tr>
+            ${Object.entries(byCat).map(([k, v]) => `<tr class="sub"><td>${esc(k)}</td><td class="n">${money2(v)}</td></tr>`).join('')}
+            <tr class="tot"><td>Profit before tax</td><td class="n">${money2(got - costTotal)}</td></tr>
+            ${L.rent ? `<tr><td>Rent arrears now</td><td class="n">${L.arrears ? money2(L.arrears) + ' (since ' + esc(ukDate(L.oldestUnpaid)) + ')' : 'None'}</td></tr>` : ''}
+          </table>
+          ${t ? `<h3>Deposit</h3><p>${dep.amount ? `${money2(dep.amount)}${t.depositScheme ? ' · ' + esc(t.depositScheme) : ''}${dep.protectedOn ? ' · protected ' + esc(ukDate(dep.protectedOn)) + (dep.late ? ' (after the deadline)' : '') : ' · not recorded as protected'}${dep.overCap ? ' · over the legal cap' : ''}` : 'No deposit recorded.'}</p>` : ''}
+          <h3>Repairs</h3>
+          <p>${open.length ? `${open.length} open: ${open.map(i => esc(i.title) + ' (' + esc(RentUKLib.ISSUE_PRIORITY[i.priority]) + ', ' + esc(RentUKLib.ISSUE_STATUS[i.status]) + ')').join('; ')}` : 'None open.'}
+            ${doneYear.length ? `<br>${doneYear.length} completed this tax year.` : ''}</p>
+        </section>`;
+    }).join('');
+    return `<h1>${list.length > 1 ? 'Portfolio report' : 'Property report'}</h1>
+      <p class="meta">Prepared ${esc(ukDate(today))} with RentUK from the owner’s own records.</p>
+      ${sections}
+      <p class="note">Figures are the payments and costs recorded in RentUK, not audited accounts. Compliance statuses reflect what the owner recorded against official guidance checked on ${esc(RentUKLib.RULES_VERIFIED)}; they are not legal advice or a guarantee of compliance.</p>`;
+  }
+
+  // Opens a print-ready page in a new tab (used by the report and the move-in pack).
+  function openPrintWindow(title, body) {
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>${esc(title)}</title>
+      <style>
+        body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; max-width: 820px; margin: 24px auto; padding: 0 16px; }
+        h1 { font-size: 24px; margin: 0; } h2 { font-size: 18px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; margin-top: 28px; }
+        h3 { font-size: 14px; margin: 16px 0 6px; } section { break-inside: avoid-page; }
+        table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 5px 7px; text-align: left; vertical-align: top; }
+        th { background: #f3f4ff; } td.n { text-align: right; white-space: nowrap; } tr.sub td { color: #555; padding-left: 20px; } tr.tot td { font-weight: 700; }
+        tr.s-expired td:nth-child(2), tr.s-action td:nth-child(2), tr.s-missing td:nth-child(2) { color: #b91c1c; font-weight: 600; }
+        tr.s-soon td:nth-child(2), tr.s-unverified td:nth-child(2) { color: #b45309; font-weight: 600; } tr.s-ok td:nth-child(2) { color: #047857; }
+        .meta { color: #555; margin-top: 2px; } .note { color: #555; font-size: 12px; margin-top: 28px; }
+        .print { background: #4f46e5; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
+        @media print { .print { display: none; } body { margin: 0; } }
+      </style></head><body><button class="print">Print or save as PDF</button>${body}</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    const printBtn = w.document.querySelector('.print');
+    if (printBtn) printBtn.addEventListener('click', () => w.print());
   }
 
   // ---- Tenant move-in pack (printable) ----
