@@ -203,6 +203,13 @@ document.addEventListener('DOMContentLoaded', function() {
         h -= (main.scrollHeight - main.clientHeight) + 4;
         main.innerHTML = SCREENS[screen](p, h);
       }
+      // Then the other way: if a paged list leaves a gap at the bottom, add rows while they still fit.
+      for (let i = 0; i < 4 && main.querySelector('.pager'); i++) {
+        const before = main.innerHTML, pagesBefore = { ...pageAt };
+        main.innerHTML = SCREENS[screen](p, h + 40);
+        if (main.scrollHeight > main.clientHeight + 1) { main.innerHTML = before; Object.assign(pageAt, pagesBefore); break; }
+        h += 40;
+      }
       main.classList.remove('measuring');
     }
     document.querySelectorAll('.tabbar button').forEach(b => {
@@ -533,8 +540,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const today = todayIso(), monthStart = today.slice(0, 8) + '01';
     const thisMonthDue = RentUKLib.expectedBetween(t, monthStart, today.slice(0, 8) + '31');
     const gotMonth = RentUKLib.received(payments, monthStart, today, p.id);
-    const gotYear = RentUKLib.received(payments, `${start}-04-06`, today, p.id);
-    const costsYear = expenses.filter(e => e.propertyId === p.id && e.date >= `${start}-04-06` && e.date <= today).reduce((n, e) => n + (Number(e.amount) || 0), 0);
     const list = payments.filter(x => x.propertyId === p.id).sort((a, b) => String(b.date).localeCompare(String(a.date)));
     return `
       <div class="rent-card glass tone-${rs.tone}">
@@ -545,12 +550,11 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         <button class="btn" data-action="add-payment">${ICON.plus}Record payment</button>
       </div>
-      <div class="stats">
+      <div class="stats stats-2">
         <div class="stat"><small>Due this month</small><strong>${money2(thisMonthDue)}</strong></div>
         <div class="stat"><small>Received this month</small><strong>${money2(gotMonth)}</strong></div>
-        <div class="stat"><small>Profit this tax year</small><strong>${money2(gotYear - costsYear)}</strong></div>
       </div>
-      <p class="fine">Actual figures: payments you’ve recorded minus costs you’ve added. Tracking from ${esc(ukDate(L.from))}.</p>
+      <p class="fine">Tracking from ${esc(ukDate(L.from))}.</p>
       ${list.length ? pager('payments', list, h, 420, 66, paymentRow) : '<p class="empty">No payments recorded yet.</p>'}`;
   }
   const paymentRow = x => `

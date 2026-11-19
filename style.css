@@ -212,6 +212,7 @@ h1, h2, h3 { letter-spacing: -0.02em; }
 .seg button { min-height: 40px; border-radius: 999px; font-weight: 600; color: var(--muted); transition: background 0.2s, color 0.2s; }
 .seg button.on { background: var(--brand-solid); color: #fff; box-shadow: 0 8px 18px -8px rgba(79, 70, 229, 0.8); }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stats-2 { grid-template-columns: 1fr 1fr; }
 .stat { padding: 12px; border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 4px; }
 .stat small { font-size: 0.66rem; }
 .stat strong { font-size: 1.08rem; }
@@ -706,6 +707,8 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .nation-pill svg { width: 15px; height: 15px; }
 .muted { color: var(--muted); }
 .screen-property { display: flex; flex-direction: column; gap: 14px; }
+/* Property (19 Nov 2026): the six panes share the free height, with more air between them */
+.screen-property .tiles { flex: 1; min-height: 0; grid-template-rows: repeat(3, 1fr); gap: clamp(14px, 2.4vh, 22px); }
 .seg-2 { grid-template-columns: 1fr 1fr; }
 .field select, .wizard select {
   width: 100%; min-height: 50px; padding: 12px 14px; border-radius: 16px;
