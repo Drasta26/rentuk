@@ -167,34 +167,58 @@
     if (n >= 1 && n <= 31) return n;
     return date(t && t.leaseStart) ? Number(t.leaseStart.slice(8)) : 1;
   }
-  // Where tracking starts: the date the landlord chose, else the lease start, else today.
-  function rentFromOf(t, todayIso) {
-    return date(t && t.rentFrom) || date(t && t.leaseStart) || todayIso;
+  // Where tracking starts: the date the landlord chose (stored, so it never moves), else the tenancy start.
+  // With neither, rent is not tracked yet: nothing is counted as due.
+  function rentFromOf(t) {
+    return date(t && t.rentFrom) || date(t && t.leaseStart) || null;
   }
+  // Rent history: [{ from, amount }], oldest first. The rent on a date is the latest change on or before it.
+  function rentHistoryOf(t) {
+    const base = parseFloat(t && t.rentAmount) || 0;
+    const list = Array.isArray(t && t.rentHistory) ? t.rentHistory.filter(r => r && date(r.from) && parseFloat(r.amount) >= 0)
+      .map(r => ({ from: r.from, amount: parseFloat(r.amount) })).sort((a, b) => a.from.localeCompare(b.from)) : [];
+    return { base, list };
+  }
+  function rentAt(t, iso) {
+    const { base, list } = rentHistoryOf(t);
+    let amount = list.length ? list[0].amount : base;
+    for (const r of list) if (r.from <= iso) amount = r.amount;
+    return amount;
+  }
+  // Rent due between two dates (inclusive), using the rent in force on each due date.
+  function expectedBetween(t, fromIso, toIso) {
+    const start = rentFromOf(t);
+    if (!start || !(parseFloat(t && t.rentAmount) > 0)) return 0;
+    const ended = date(t && t.endedOn);
+    const from = fromIso > start ? fromIso : start;
+    const to = ended && ended < toIso ? ended : toIso;
+    return Math.round(dueDates(from, to, dueDayOf(t)).reduce((n, d) => n + rentAt(t, d), 0) * 100) / 100;
+  }
+  // A fixed-term end date does not stop rent (tenancies roll on as periodic); only an ended tenancy does.
   function rentLedger(tenant, payments, propertyId, todayIso) {
     const t = tenant || {};
     const rent = parseFloat(t.rentAmount) || 0;
-    const from = rentFromOf(t, todayIso);
+    const from = rentFromOf(t);
     const day = dueDayOf(t);
-    const ended = date(t.leaseEnd) && t.leaseEnd < todayIso ? t.leaseEnd : null;
+    const ended = date(t.endedOn) && t.endedOn < todayIso ? t.endedOn : null;
     const until = ended || todayIso;
-    const dues = rent > 0 ? dueDates(from, until, day) : [];
-    const paidList = (payments || []).filter(x => x && x.propertyId === propertyId && date(x.date) && x.date >= from)
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const dues = rent > 0 && from ? dueDates(from, until, day).map(d => ({ d, amount: rentAt(t, d) })) : [];
+    const paidList = from ? (payments || []).filter(x => x && x.propertyId === propertyId && date(x.date) && x.date >= from)
+      .sort((a, b) => a.date.localeCompare(b.date)) : [];
     const paid = Math.round(paidList.reduce((s, x) => s + (Number(x.amount) || 0), 0) * 100) / 100;
-    const expected = Math.round(dues.length * rent * 100) / 100;
+    const expected = Math.round(dues.reduce((n, x) => n + x.amount, 0) * 100) / 100;
     const balance = Math.round((expected - paid) * 100) / 100;
     // Oldest due date not yet covered by payments (payments pay off the oldest rent first).
     let covered = paid, oldestUnpaid = null;
-    for (const d of dues) { if (covered + 0.005 >= rent) covered -= rent; else { oldestUnpaid = d; break; } }
-    const nextDue = rent > 0 && !ended ? (dueDates(addDays(todayIso, 1), addDays(todayIso, 62), day)[0] || null) : null;
+    for (const x of dues) { if (covered + 0.005 >= x.amount) covered -= x.amount; else { oldestUnpaid = x.d; break; } }
+    const nextDue = rent > 0 && from && !ended ? (dueDates(addDays(todayIso > from ? todayIso : addDays(from, -1), 1), addDays(todayIso > from ? todayIso : from, 62), day)[0] || null) : null;
     const lastPayment = paidList.length ? paidList[paidList.length - 1] : null;
     return {
-      rent, from, day, expected, paid, balance,
+      rent, from, day, expected, paid, balance, tracked: !!(rent > 0 && from),
       arrears: balance > 0.004 ? balance : 0,
       credit: balance < -0.004 ? -balance : 0,
       oldestUnpaid, daysOverdue: oldestUnpaid ? daysBetween(oldestUnpaid, todayIso) : 0,
-      nextDue, lastPayment, dueCount: dues.length
+      nextDue, nextAmount: nextDue ? rentAt(t, nextDue) : 0, lastPayment, dueCount: dues.length
     };
   }
   // Money actually received between two dates (inclusive), for one property or all.
@@ -251,8 +275,10 @@
     }
     const received = date(t.depositReceived);
     const protectedOn = date(t.depositProtected);
-    const deadline = received ? (nation === 'scotland' ? addWorkingDays(received, 30) : addDays(received, nation === 'ni' ? 28 : 30)) : null;
-    const deadlineText = nation === 'scotland' ? '30 working days' : nation === 'ni' ? '28 days' : '30 days';
+    // Scotland counts from the start of the tenancy; England, Wales and NI from receiving the deposit.
+    const startScot = date(t.leaseStart) || received;
+    const deadline = received ? (nation === 'scotland' ? addWorkingDays(startScot, 30) : addDays(received, nation === 'ni' ? 28 : 30)) : null;
+    const deadlineText = nation === 'scotland' ? '30 working days of the tenancy starting (bank holidays not taken off)' : nation === 'ni' ? '28 days' : '30 days';
     return {
       amount, cap, capText, overCap: cap != null && amount > cap + 0.004,
       deadline, deadlineText,
@@ -306,6 +332,12 @@
     return [['Date', 'Property', 'Type', 'Category', 'Description', 'Amount (GBP)'], ...rows];
   }
 
+  // Monthly repeat for a rent due day: days 29 and 30 fall back to the month's last day when it is shorter.
+  function monthlyRule(day) {
+    return day >= 31 ? 'FREQ=MONTHLY;BYMONTHDAY=-1' : day === 30 ? 'FREQ=MONTHLY;BYMONTHDAY=28,29,30;BYSETPOS=-1'
+      : day === 29 ? 'FREQ=MONTHLY;BYMONTHDAY=28,29;BYSETPOS=-1' : `FREQ=MONTHLY;BYMONTHDAY=${day}`;
+  }
+
   // ---- Calendar export (iCalendar, RFC 5545) ----
   function icsText(v) {
     return String(v).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r\n|\r|\n/g, '\\n');
@@ -322,7 +354,7 @@
         `DTSTART;VALUE=DATE:${day}`, `DTEND;VALUE=DATE:${next}`, `SUMMARY:${icsText(e.title)}`);
       if (e.description) lines.push(`DESCRIPTION:${icsText(e.description)}`);
       // Only simple monthly repeats are allowed (used for rent due dates).
-      if (e.rrule && /^FREQ=MONTHLY;BYMONTHDAY=(-1|[1-9]|1\d|2[0-8])$/.test(e.rrule)) lines.push(`RRULE:${e.rrule}`);
+      if (e.rrule && /^FREQ=MONTHLY;BYMONTHDAY=(-1|[1-9]|1\d|2[0-8]|28,29;BYSETPOS=-1|28,29,30;BYSETPOS=-1)$/.test(e.rrule)) lines.push(`RRULE:${e.rrule}`);
       const alarm = Number.isInteger(e.alarmDays) && e.alarmDays >= 0 && e.alarmDays <= 60 ? e.alarmDays : 14;
       lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${icsText(e.title)}`, `TRIGGER:-P${alarm}D`, 'END:VALARM', 'END:VEVENT');
     }
@@ -414,7 +446,9 @@
       ...(t.depositRef ? { depositRef: text(t.depositRef) } : {}),
       ...(date(t.depositReceived) ? { depositReceived: t.depositReceived } : {}),
       ...(date(t.depositProtected) ? { depositProtected: t.depositProtected } : {}),
-      ...(date(t.endedOn) ? { endedOn: t.endedOn } : {})
+      ...(date(t.endedOn) ? { endedOn: t.endedOn } : {}),
+      ...(Array.isArray(t.rentHistory) ? { rentHistory: t.rentHistory.slice(0, 60).filter(r => r && date(r.from) && Number.isFinite(parseFloat(r.amount)) && parseFloat(r.amount) >= 0)
+        .map(r => ({ from: r.from, amount: parseFloat(r.amount) })) } : {})
     };
   }
 
@@ -528,7 +562,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { DOC_TYPES, DOC_MIME, MAX_DOC_BYTES, docFileOk, cleanDoc, depositCheck, addWorkingDays, cleanTenant, STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { rentAt, expectedBetween, monthlyRule, DOC_TYPES, DOC_MIME, MAX_DOC_BYTES, docFileOk, cleanDoc, depositCheck, addWorkingDays, cleanTenant, STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

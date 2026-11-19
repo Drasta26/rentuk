@@ -1,6 +1,8 @@
 // Wait for DOM to be fully loaded before running app
 document.addEventListener('DOMContentLoaded', function() {
   const esc = window.RentUKLib.escapeHtml;
+  // Today's date on this device's clock (so BST evenings are not counted as tomorrow or yesterday).
+  const localIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const { readJson, writeAll, asList } = window.RentUKLib;
   // localStorage itself can throw (e.g. blocked in some private modes), so fall back to an in-memory store.
   const memoryStore = () => {
@@ -18,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function() {
   const isDemo = params.has('demo') || isPreview;
   const storageMissing = !store && !isDemo;
   if (!store || isDemo) store = memoryStore();
-  if (isDemo) writeAll(store, window.RentUKLib.demoData(new Date().toISOString().slice(0, 10)));
+  if (isDemo) writeAll(store, window.RentUKLib.demoData(localIso()));
   let storageWarned = false;
   // Data storage: this browser's localStorage only. Nothing is sent to any server.
   let expenses = asList(readJson(store, 'expenses', []), []);
@@ -264,9 +266,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const t = p && p.tenant;
     if (!t || !(parseFloat(t.rentAmount) > 0)) return { tone: 'none', title: 'Not tracked', text: 'Add the rent to start' };
     const L = ledgerFor(p);
+    if (!L.tracked) return { tone: 'none', title: 'Not tracked', text: 'Set when to track rent from' };
     if (L.arrears) return { tone: 'bad', title: `${money2(L.arrears)} overdue`, amount: money2(L.arrears), text: `Unpaid since ${ukDate(L.oldestUnpaid)}`, L };
     if (L.credit) return { tone: 'ok', title: 'Paid up', text: `${money2(L.credit)} in credit`, L };
-    return { tone: 'ok', title: 'Paid up', text: L.nextDue ? `Next ${money(L.rent)} due ${ukDate(L.nextDue)}` : 'Nothing due', L };
+    return { tone: 'ok', title: 'Paid up', text: L.nextDue ? `Next ${money(L.nextAmount)} due ${ukDate(L.nextDue)}` : 'Nothing due', L };
   }
 
   // Everything that needs the landlord for one property, most urgent first (lower rank = sooner).
@@ -288,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .forEach(d => add(3, daysFrom(d.dueDate) < 0 ? 'bad' : 'warn', d.name, whenText(d.dueDate), { tab: 'checks' }));
     const dep = RentUKLib.depositCheck(RentUKLib.nationOf(p), p.tenant, today);
     if (p.tenant && dep.overCap) add(2, 'bad', 'Deposit over the legal cap', `${money2(dep.amount)} is more than ${dep.capText}`, { act: 'tenant-dep' });
+    if (p.tenant && dep.protectedOn && dep.late) add(2, 'bad', 'Deposit protected after the deadline', 'get advice on what this means', { act: 'tenant-dep' });
     if (p.tenant && dep.due) add(dep.late ? 1 : 3, dep.late ? 'bad' : 'warn', dep.late ? 'Deposit protection overdue' : 'Protect the deposit', `${dep.late ? 'deadline was' : 'by'} ${ukDate(dep.deadline)}`, { act: 'tenant-dep' });
     if (p.tenant && p.tenant.leaseEnd && daysFrom(p.tenant.leaseEnd) >= 0 && daysFrom(p.tenant.leaseEnd) <= 60)
       add(4, 'warn', 'Tenancy end date coming up', `${ukDate(p.tenant.leaseEnd)} · ${whenText(p.tenant.leaseEnd)}`, { act: 'tenant' });
@@ -344,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
       let due = 0, got = 0, open = 0, urgent = 0, upToDate = 0;
       scope.forEach(q => {
         const L = ledgerFor(q);
-        if (L.rent) due += RentUKLib.dueDates(L.from > monthStart ? L.from : monthStart, today.slice(0, 8) + '31', L.day).length * L.rent;
+        if (q.tenant) due += RentUKLib.expectedBetween(q.tenant, monthStart, today.slice(0, 8) + '31');
         got += RentUKLib.received(payments, monthStart, today, q.id);
         const iss = RentUKLib.issueSummary(issues, q.id, today); open += iss.open; urgent += iss.urgent;
         if (checksFor(q, today).items.every(i => i.status === 'ok' || i.status === 'na' || !i.legal)) upToDate++;
@@ -500,8 +504,11 @@ document.addEventListener('DOMContentLoaded', function() {
         <button class="btn" data-action="tenant">Add rent details</button>
       </div>`;
     const rs = rentState(p), L = rs.L;
+    if (!L) return `<div class="empty-card glass">${chip('pound', 'indigo')}<h2>Choose when to track from</h2>
+        <p>Set the date RentUK should start counting rent due, then record payments as they arrive.</p>
+        <button class="btn" data-action="tenant-rent">Set tracking date</button></div>`;
     const today = todayIso(), monthStart = today.slice(0, 8) + '01';
-    const thisMonthDue = RentUKLib.dueDates(L.from > monthStart ? L.from : monthStart, today.slice(0, 8) + '31', L.day).length * L.rent;
+    const thisMonthDue = RentUKLib.expectedBetween(t, monthStart, today.slice(0, 8) + '31');
     const gotMonth = RentUKLib.received(payments, monthStart, today, p.id);
     const gotYear = RentUKLib.received(payments, `${start}-04-06`, today, p.id);
     const costsYear = expenses.filter(e => e.propertyId === p.id && e.date >= `${start}-04-06` && e.date <= today).reduce((n, e) => n + (Number(e.amount) || 0), 0);
@@ -690,7 +697,11 @@ document.addEventListener('DOMContentLoaded', function() {
           fn(URL.createObjectURL(new Blob([blob], { type: RentUKLib.DOC_MIME.includes(d.mime) ? d.mime : 'application/octet-stream' })));
         } catch (e) { showCustomAlert('Couldn’t open the file storage in this browser.', 'File not available'); }
       };
-      s.querySelector('#do-open').onclick = () => withFile(url => { const w = window.open(url, '_blank', 'noopener'); if (!w) location.href = url; setTimeout(() => URL.revokeObjectURL(url), 60000); });
+      s.querySelector('#do-open').onclick = () => withFile(url => {
+        const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 10 * 60000);
+      });
       s.querySelector('#do-save').onclick = () => withFile(url => {
         const a = document.createElement('a'); a.href = url; a.download = d.name.replace(/[^\w .-]+/g, '_') + (d.mime === 'application/pdf' ? '.pdf' : '.' + d.mime.split('/')[1]);
         document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
@@ -776,7 +787,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const p = getCurrentProperty();
     const actions = {
       setup: showSetupWizard,
-      'add-property': showSetupWizard,
+      'add-property': () => isPreview ? location.assign(location.pathname + '?setup') : showSetupWizard(),
       'edit-property': () => propertySheet(p),
       menu: menuSheet,
       properties: propertiesSheet,
@@ -803,6 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
         else go(t.dataset.go || 'home');
       },
       'add-payment': () => paymentSheet(p),
+      'tenant-rent': () => tenantSheet(p, 'rent'),
       repairs: () => { screen = 'property'; propView = 'repairs'; render(true); },
       'prop-back': () => { propView = 'main'; render(true); },
       'add-issue': () => issueSheet(p),
@@ -941,7 +953,8 @@ document.addEventListener('DOMContentLoaded', function() {
           ${field('t-due', 'Due on day', 'number', t.rentDueDay || (t.leaseStart ? Number(t.leaseStart.slice(8)) : ''), 'inputmode="numeric" min="1" max="31" placeholder="1"')}
         </div>
         ${field('t-from', 'Track rent from', 'date', t.rentFrom || t.leaseStart || todayIso())}
-        <p class="fine">RentUK counts rent due from this date and compares it with the payments you record.</p>
+        ${parseFloat(t.rentAmount) > 0 ? field('t-change', 'If you change the rent, the new amount applies from', 'date', todayIso()) : ''}
+        <p class="fine">RentUK counts rent due from the tracking date and compares it with the payments you record. A rent change applies only from its date.</p>
       </div>
       <div class="tpanel" data-panel="dep" hidden>
         <div class="field-row">
@@ -975,7 +988,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const bits = [];
         if (d.cap != null) bits.push(d.overCap ? `Over the legal cap of ${money2(d.cap)} (${d.capText}).` : `Legal cap: ${money2(d.cap)} (${d.capText}).`);
         else if (nation === 'wales') bits.push('No cap on security deposits was found for Wales (a holding deposit is capped at 1 week’s rent).');
-        if (d.deadline) bits.push(d.protectedOn ? (d.late ? `Protected after the ${d.deadlineText} deadline (${ukDate(d.deadline)}). Get advice.` : 'Protected on time.') : `Protect it by ${ukDate(d.deadline)} (${d.deadlineText}).`);
+        if (d.deadline) bits.push(d.protectedOn ? (d.late ? `Protected after the deadline (${ukDate(d.deadline)}, ${d.deadlineText}). Get advice.` : 'Protection date is within the deadline. The required information must also be given to the tenant.') : `Protect it by ${ukDate(d.deadline)} (${d.deadlineText}).`);
         const el = s.querySelector('.dep-live'); el.textContent = bits.join(' '); el.classList.toggle('t-bad', d.overCap || d.late);
       };
       ['#t-rent', '#t-dep', '#t-dreceived', '#t-dprotected'].forEach(id => s.querySelector(id).addEventListener('input', live));
@@ -989,15 +1002,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (s.querySelector('#t-due').value && !(due >= 1 && due <= 31)) { show('rent'); return sheetError(s, 'The due day must be between 1 and 31.'); }
         const r = read();
         if (r.depositProtected && r.depositReceived && r.depositProtected < r.depositReceived) { show('dep'); return sheetError(s, 'The protected date can’t be before the date it was received.'); }
+        const oldRent = parseFloat(t.rentAmount) || 0, newRent = parseFloat(r.rentAmount) || 0;
+        const changeEl = s.querySelector('#t-change');
+        let rentHistory = t.rentHistory;
+        if (oldRent > 0 && newRent !== oldRent && changeEl) {
+          const from = changeEl.value || todayIso();
+          const base = (rentHistory && rentHistory.length) ? rentHistory : [{ from: t.rentFrom || t.leaseStart || from, amount: oldRent }];
+          rentHistory = [...base.filter(x => x.from < from), { from, amount: newRent }];
+        }
         p.tenant = { ...t, name, contact: s.querySelector('#t-contact').value.trim(), leaseStart: s.querySelector('#t-start').value,
-          leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(r.rentAmount) || 0,
+          leaseEnd: s.querySelector('#t-end').value, rentAmount: newRent, rentHistory,
           rentDueDay: due || undefined, rentFrom: s.querySelector('#t-from').value || undefined,
           depositAmount: r.depositAmount === '' ? undefined : String(Math.max(0, parseFloat(r.depositAmount) || 0)),
           depositScheme: s.querySelector('#t-scheme').value.trim() || undefined, depositRef: s.querySelector('#t-ref').value.trim() || undefined,
           depositReceived: r.depositReceived || undefined, depositProtected: r.depositProtected || undefined };
         // Fewer taps: a protected deposit ticks the deposit check; recording a deposit of £0 marks it not applicable.
         const comp = { ...(p.compliance || {}) };
-        if (r.depositProtected) comp.deposit = true;
+        const depNow = RentUKLib.depositCheck(nation, r, todayIso());
+        if (r.depositProtected && !depNow.late) comp.deposit = true;
         else if (r.depositAmount !== '' && parseFloat(r.depositAmount) === 0) comp.deposit = 'na';
         p.compliance = comp;
         saveData(); closeSheet(); render();
@@ -1051,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>
       <button class="btn btn-add" id="p-add">${ICON.plus}Add a property</button>`, s => {
       s.querySelectorAll('.pick').forEach(b => b.onclick = () => { closeSheet(); Object.keys(pageAt).forEach(k => delete pageAt[k]); setCurrentProperty(b.dataset.id); });
-      s.querySelector('#p-add').onclick = () => { closeSheet(); showSetupWizard(); };
+      s.querySelector('#p-add').onclick = () => { closeSheet(); if (isPreview) location.assign(location.pathname + '?setup'); else showSetupWizard(); };
     });
   }
 
@@ -1178,18 +1200,11 @@ document.addEventListener('DOMContentLoaded', function() {
       </div>`).join('') + `<p class="fine">Official GOV.UK, HMRC and HSE pages. They open in your browser; RentUK sends nothing to them.</p>`);
   }
 
-  // ---- Ask RentUK: chat with Claude using the user's own Anthropic API key ----
-  // The key lives only in this tab's memory and is forgotten when the tab closes (never saved to storage).
-  // Questions go through the RentUK chat relay (relay/worker.mjs, a Cloudflare Worker) to Anthropic.
-  // The relay holds the owner's Anthropic key as a secret, so users need no key; it never logs or stores questions.
-  // Someone who enters their own key in this tab talks to Anthropic directly instead.
+  // ---- Ask RentUK: chat with Claude through the RentUK relay (relay/worker.mjs, a Cloudflare Worker) ----
+  // The relay holds the owner's Anthropic key as a secret and sets the prompt, so users never need a key or any setup.
+  // It never logs or stores questions.
   const CHAT_RELAY = 'https://rentuk-chat.rentuk.workers.dev/';
-  const chat = { key: '', turns: [], withSummary: false, busy: false };
-  const CHAT_SYSTEM = `You are the assistant inside RentUK, a private app for landlords in England.
-Help with renting rules, landlord safety checks, deposits, tenancies, rental income and tax, and running a let property.
-Be accurate. If you are not sure, say so. For legal or tax questions give general information, name the relevant GOV.UK or HMRC page, and say it is not legal or tax advice when that matters.
-Rules differ in Wales, Scotland and Northern Ireland; say so if the question may depend on it.
-Use UK English. Keep answers short (under 200 words unless asked for more). Write plain text without Markdown: short paragraphs, or simple lists that start with a hyphen.`;
+  const chat = { turns: [], withSummary: false, busy: false };
 
   // Scores and totals only: no property names, addresses or tenant details.
   function chatSummary(p) {
@@ -1204,7 +1219,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   function chatErrorText(status, body) {
-    if (status === 401) return chat.key ? 'That API key was not accepted. Check it and try again.' : 'Chat is unavailable right now. Try again later.';
+    if (status === 401) return 'Chat is unavailable right now. Try again later.';
     if (status === 402 || /credit|billing/i.test(body)) return 'Your Anthropic account needs credit before Claude can answer.';
     if (status === 429) return 'Too many questions at once. Wait a moment and try again.';
     if (status >= 500) return 'Claude is busy or unavailable right now. Try again shortly.';
@@ -1216,30 +1231,12 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const recent = chat.turns.slice(-11);
     while (recent.length && recent[0].role !== 'user') recent.shift();
     const messages = recent.map(t => ({ role: t.role, content: t.content }));
-    const system = chat.withSummary ? CHAT_SYSTEM + '\n\n' + chatSummary(p) : CHAT_SYSTEM;
     let res;
     try {
-      res = CHAT_RELAY && !chat.key ? await fetch(CHAT_RELAY, {
+      res = await fetch(CHAT_RELAY, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ messages, summary: chat.withSummary ? chatSummary(p) : '' })
-      }) : await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': chat.key,
-          'anthropic-version': '2026-10-21',
-          'anthropic-dangerous-direct-browser-access': 'true',
-          'anthropic-beta': 'server-side-fallback-2026-07-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-opus-5-5',
-          max_tokens: 16000,
-          output_config: { effort: 'low' },
-          fallbacks: 'default',
-          system,
-          messages
-        })
       });
     } catch (e) {
       return { error: 'Could not reach Claude. Check your internet connection.' };
@@ -1279,28 +1276,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     makeDialog(el, close);
     el.querySelector('#c-back').onclick = close;
     const body = el.querySelector('#c-body');
-    if (!CHAT_RELAY && !chat.key) {
+    if (!CHAT_RELAY) {
       body.innerHTML = `
         <div class="chat-intro">
           <img src="icons/assistant.svg" alt="" width="96" height="96" class="chat-avatar-lg">
-          <h2>Hello, I’m your RentUK Assistant</h2>
-          <p>I’m an AI, not a person. Soon you’ll be able to ask me about safety checks, deposits, tenancies, rent and tax for letting in England, free and with no sign-up.</p>
-          <p class="soon-big">Chat is coming soon</p>
-          ${COMING_SOON}
-          <details class="own-key">
-            <summary>Have your own Anthropic API key? Use it now</summary>
-            <p class="fine">${ICON.lock} Your questions go straight from this device to Anthropic, the maker of Claude. RentUK never sees or stores them. The key stays in this tab only and is forgotten when you close it.</p>
-            <label class="field"><span>Anthropic API key</span><input id="k-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-..."></label>
-            <button class="btn" id="k-go">Start chatting</button>
-          </details>
+          <h2>Chat is unavailable</h2>
+          <p>The RentUK assistant can’t be reached right now. Please try again later.</p>
         </div>`;
-      const go = () => {
-        const v = body.querySelector('#k-key').value.trim();
-        if (!v) { body.querySelector('#k-key').focus(); return; }
-        chat.key = v; openChat(p);
-      };
-      body.querySelector('#k-go').onclick = go;
-      body.querySelector('#k-key').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
       return;
     }
     body.innerHTML = `
@@ -1312,7 +1294,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span>${chat.key ? '<button class="link-btn" id="c-forget">Forget key</button>' : ''}</div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span></div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
@@ -1326,8 +1308,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     if (!chat.turns.length) bubble('assistant', 'Hello. I’m an AI assistant for landlords in England. What would you like to know?');
     chat.turns.forEach(t => bubble(t.role, t.text));
     body.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
-    const forget = body.querySelector('#c-forget');
-    if (forget) forget.onclick = () => { chat.key = ''; chat.turns = []; openChat(p); };
     const ask = async () => {
       const text = q.value.trim();
       if (!text || chat.busy) return;
@@ -1458,7 +1438,19 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     aobReminders = asList(readJson(store, 'aobReminders', []), []);
     payments = asList(readJson(store, 'payments', []), []);
     issues = asList(readJson(store, 'issues', []), []);
+    fixRentStart();
     documents = asList(readJson(store, 'documents', []), []);
+  }
+
+  // Tenancies saved before rent tracking existed have no start date. Start tracking today (saved, so it never
+  // moves) rather than from an old lease start, which would show years of false arrears.
+  function fixRentStart() {
+    let changed = false;
+    properties.forEach(p => {
+      const t = p && p.tenant;
+      if (t && parseFloat(t.rentAmount) > 0 && !t.rentFrom) { t.rentFrom = todayIso(); changed = true; }
+    });
+    if (changed && !isDemo) saveLocalData();
   }
 
   // Save local data
@@ -1520,24 +1512,25 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   function applyImport(result) {
-    const importedData = result.data;
-        expenses = importedData.expenses || expenses;
-        properties = importedData.properties || properties;
-        currentPropertyId = importedData.currentPropertyId || currentPropertyId;
-        reminders = importedData.reminders || reminders;
-        aobReminders = importedData.aobReminders || aobReminders;
-        payments = importedData.payments || payments;
-        issues = importedData.issues || issues;
-        documents = importedData.documents || documents;
-        saveData();
-        showCustomAlert(result.skipped > 0
-          ? `Data imported. ${result.skipped} invalid record(s) were skipped.`
-          : 'Data imported successfully!', 'RentUK says');
-        loadPropertySelector();
-        loadDashboard();
-        loadExpenses();
-        loadReminders();
-        loadTenants();
+    const d = result.data;
+    const before = documents;
+    // Restoring replaces everything: anything not in the backup is cleared, not kept from before.
+    expenses = d.expenses || [];
+    properties = d.properties || [];
+    currentPropertyId = d.currentPropertyId || (properties[0] && properties[0].id) || null;
+    reminders = d.reminders || reminders;
+    aobReminders = d.aobReminders || [];
+    payments = d.payments || [];
+    issues = d.issues || [];
+    documents = d.documents || [];
+    const keep = new Set(documents.map(x => String(x.id)));
+    before.filter(x => !keep.has(String(x.id))).forEach(x => fileStore() && fileStore().remove(x.id).catch(() => {}));
+    fixRentStart();
+    saveData();
+    showCustomAlert(result.skipped > 0
+      ? `Data restored. ${result.skipped} invalid record(s) were skipped.`
+      : 'Data restored.' + (documents.length ? ' Document files are not inside backups, so any not on this device will show as not found.' : ''), 'RentUK says');
+    render(true);
   }
 
   // Import data functionality
@@ -1615,7 +1608,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   // ---- Compliance Score ----
-  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const todayIso = localIso;
   const STATUS_ICON = { ok: '✅', soon: '⏳', expired: '❌', missing: '⚪' };
 
   const ukDate = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -1713,8 +1706,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     // Rent due every month, and any deposit protection deadline.
     properties.forEach(p => {
       const L = ledgerFor(p);
-      if (L.rent && L.nextDue) events.push({ uid: `rent-${p.id}`, date: L.nextDue, title: `Rent due ${money2(L.rent)} – ${p.name}`,
-        description: 'Record the payment in RentUK when it arrives.', rrule: `FREQ=MONTHLY;BYMONTHDAY=${L.day > 28 ? -1 : L.day}`, alarmDays: 1 });
+      if (L.tracked && L.nextDue) events.push({ uid: `rent-${p.id}`, date: L.nextDue, title: `Rent due ${money2(L.nextAmount)} – ${p.name}`,
+        description: 'Record the payment in RentUK when it arrives.', rrule: RentUKLib.monthlyRule(L.day), alarmDays: 1 });
       const dep = RentUKLib.depositCheck(RentUKLib.nationOf(p), p.tenant, today);
       if (p.tenant && dep.due && dep.deadline >= today) events.push({ uid: `deposit-${p.id}-${dep.deadline}`, date: dep.deadline, title: `Protect the deposit – ${p.name}`, alarmDays: 7 });
     });
@@ -1901,7 +1894,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const bar = document.createElement('div');
     bar.className = 'demo-banner';
     const exit = location.pathname + (hasRealData ? '' : '?setup');
-    bar.innerHTML = `<span>${isPreview ? 'Preview · sample data' : 'Demo · nothing is saved'}</span>
+    bar.innerHTML = `<span>${isPreview ? 'Preview · nothing is saved' : 'Demo · nothing is saved'}</span>
       <a href="${esc(exit)}" class="demo-exit">${hasRealData ? 'Use my own' : 'Set up mine'} →</a>`;
     document.querySelector('.topbar').before(bar);
   }
@@ -2011,7 +2004,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           createdAt: new Date().toISOString()
         };
         if (Number.isFinite(rent) && rent > 0) {
-          property.tenant = { name: '', contact: '', leaseStart: '', leaseEnd: '', rentAmount: String(rent) };
+          property.tenant = { name: '', contact: '', leaseStart: '', leaseEnd: '', rentAmount: String(rent), rentFrom: todayIso() };
         }
         properties.push(property);
         currentPropertyId = property.id;

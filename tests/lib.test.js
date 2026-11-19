@@ -322,8 +322,8 @@ test('rentLedger: arrears and the oldest unpaid month', () => {
   assert.equal(r.daysOverdue, 74);
 });
 
-test('rentLedger ignores other properties, payments before tracking starts, and stops at the lease end', () => {
-  const t = { rentAmount: '500', rentDueDay: 1, rentFrom: '2026-09-01', leaseEnd: '2026-10-15' };
+test('rentLedger ignores other properties, payments before tracking starts, and stops when the tenancy ended', () => {
+  const t = { rentAmount: '500', rentDueDay: 1, rentFrom: '2026-09-01', endedOn: '2026-10-15' };
   const pays = [{ propertyId: 'other', date: '2026-09-01', amount: 500 }, { propertyId: 'p', date: '2026-08-01', amount: 500 }, { propertyId: 'p', date: '2026-09-01', amount: 1200 }];
   const r = rentLedger(t, pays, 'p', '2026-11-18');
   assert.equal(r.expected, 1000);
