@@ -869,3 +869,63 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   .welcome-h { font-size: 1.8rem; }
   .welcome-sub { font-size: 0.95rem; }
 }
+
+/* ---- Landing: show first, ask nothing (19 Nov 2026) ---- */
+.screen-welcome { justify-content: center; }
+.landing { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; padding: 4px 6px 8px; isolation: isolate; }
+.land-glow { position: absolute; inset: -40px -60px auto; height: 420px; z-index: -1; filter: blur(46px); opacity: 0.75;
+  background: radial-gradient(40% 45% at 30% 40%, rgba(99, 102, 241, 0.55), transparent 70%),
+              radial-gradient(35% 40% at 72% 55%, rgba(56, 189, 248, 0.45), transparent 70%),
+              radial-gradient(30% 35% at 55% 20%, rgba(245, 158, 11, 0.35), transparent 70%);
+  animation: land-drift 14s ease-in-out infinite alternate; }
+@keyframes land-drift { to { transform: translate3d(12px, 18px, 0) rotate(8deg) scale(1.08); } }
+.land-kicker { font-size: 0.78rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brand-text); }
+.land-h { font-size: 2.35rem; line-height: 1.08; font-weight: 800; letter-spacing: -0.02em; }
+.land-h span { background: linear-gradient(120deg, #4f46e5, #0ea5e9 55%, #f59e0b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.land-sub { color: var(--muted); font-size: 1.04rem; line-height: 1.5; max-width: 330px; }
+.land-stage { position: relative; width: min(100%, 330px); height: 156px; margin: 6px 0 4px; perspective: 900px; }
+.land-card { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px;
+  padding: 18px 20px 18px 26px; border-radius: 26px; text-align: left; overflow: hidden;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.72)); border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 30px 60px -28px rgba(67, 56, 202, 0.55), 0 0 0 1px rgba(99, 102, 241, 0.12), inset 0 1px 0 #fff;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  opacity: 0; animation: land-cycle 10.5s infinite; }
+.land-card.lc-2 { animation-delay: 3.5s; }
+.land-card.lc-3 { animation-delay: 7s; align-items: center; text-align: center; padding-left: 20px; }
+@keyframes land-cycle {
+  0% { opacity: 0; transform: translateY(18px) rotateX(14deg) scale(0.96); filter: blur(4px); }
+  7%, 30% { opacity: 1; transform: none; filter: none; }
+  37%, 100% { opacity: 0; transform: translateY(-16px) rotateX(-10deg) scale(0.97); filter: blur(4px); }
+}
+.lc-bar { position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--brand); }
+.lc-bar.warn { background: var(--warn); } .lc-bar.ok { background: var(--ok); }
+.land-card small { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.land-card strong { font-size: 1.22rem; font-weight: 800; color: var(--text); }
+.land-card span { font-size: 0.92rem; color: var(--muted); }
+.land-card em { margin-top: 8px; font-style: normal; display: inline-flex; align-items: center; gap: 2px; padding: 7px 14px; border-radius: 999px;
+  background: var(--brand-solid); color: #fff; font-weight: 700; font-size: 0.86rem; }
+.land-card em svg { width: 14px; height: 14px; }
+.lc-tick { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #10b981, #059669); color: #fff;
+  box-shadow: 0 10px 24px -8px rgba(5, 150, 105, 0.7); margin-bottom: 4px; }
+.lc-tick svg { width: 22px; height: 22px; }
+.land-go { width: min(100%, 330px); gap: 6px; }
+.land-go svg { width: 18px; height: 18px; }
+.land-setup { color: var(--brand-text); font-weight: 700; min-height: 44px; padding: 8px 14px; }
+.landing .privacy-line { margin-top: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .land-glow { animation: none; }
+  .land-card { animation: none; } .land-card.lc-1 { opacity: 1; }
+}
+@media (max-height: 700px) {
+  .landing { gap: 8px; }
+  .land-h { font-size: 2rem; }
+  .land-sub { font-size: 0.95rem; }
+  .land-stage { height: 138px; }
+}
+@media (max-height: 620px) {
+  .land-kicker { display: none; }
+  .land-h { font-size: 1.7rem; }
+  .land-stage { height: 120px; margin: 2px 0; }
+  .land-card { padding: 12px 16px 12px 22px; }
+  .land-card em { display: none; }
+}

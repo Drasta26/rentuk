@@ -307,15 +307,22 @@ document.addEventListener('DOMContentLoaded', function() {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   }
 
+  // First visit: show what RentUK does before asking for anything. The main button opens the demo (nothing saved).
   function welcomeScreen() {
     return `
-      <div class="welcome glass">
-        <img src="icons/icon-512.png" alt="" width="112" height="112" class="welcome-logo">
-        <h2 class="welcome-h">Landlording, <span>sorted.</span></h2>
-        <p class="welcome-sub">Rent, repairs and safety checks in one calm place. RentUK tells you what needs doing, one thing at a time.</p>
-        <button class="btn btn-big" data-action="setup">Get started</button>
-        <a class="link-btn welcome-demo" href="?demo">See an example first</a>
-        <p class="privacy-line">${ICON.lock}<span>Free. No account. Your data stays on this phone.</span></p>
+      <div class="landing">
+        <div class="land-glow" aria-hidden="true"></div>
+        <p class="land-kicker">For UK landlords</p>
+        <h2 class="land-h">Your rental,<br><span>calmly in control.</span></h2>
+        <p class="land-sub">Rent, repairs and safety checks. RentUK shows you the one thing that matters next.</p>
+        <div class="land-stage" aria-hidden="true">
+          <div class="land-card lc-1"><i class="lc-bar warn"></i><small>Next up</small><strong>Gas safety check due</strong><span>by 4 December</span><em>Sort it${ICON.chevron}</em></div>
+          <div class="land-card lc-2"><i class="lc-bar ok"></i><small>Rent</small><strong>£950 received</strong><span>Paid up · next due 1 January</span></div>
+          <div class="land-card lc-3"><span class="lc-tick">${ICON.tick}</span><strong>All clear</strong><span>Nothing needs you today</span></div>
+        </div>
+        <a class="btn btn-big land-go" href="?demo">Take a look${ICON.chevron}</a>
+        <button class="link-btn land-setup" data-action="setup">or set up my property</button>
+        <p class="privacy-line">${ICON.lock}<span>Free · No sign-up · Your data stays on your phone</span></p>
       </div>`;
   }
 

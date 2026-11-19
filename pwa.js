@@ -51,6 +51,8 @@
   // The bar reads "[Add] RentUK to your home screen." where "Add" is the button.
   function showInstallBar(onAdd) {
     if (isInstalled() || dismissed() || document.getElementById('pwa-update') || document.getElementById('pwa-install') || document.getElementById('backup-nudge')) return;
+    // Not on the first-look landing page: people should see the app before being asked anything.
+    if (document.querySelector('.landing')) { setTimeout(() => showInstallBar(onAdd), 4000); return; }
     const bar = document.createElement('div');
     bar.id = 'pwa-install';
     bar.className = 'pwa-bar';
