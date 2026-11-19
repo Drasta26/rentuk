@@ -312,17 +312,24 @@ document.addEventListener('DOMContentLoaded', function() {
     return `
       <div class="landing">
         <div class="land-glow" aria-hidden="true"></div>
+        <div class="land-group">
         <p class="land-kicker">For UK landlords</p>
-        <h2 class="land-h">Your rental,<br><span>calmly in control.</span></h2>
-        <p class="land-sub">Rent, repairs and safety checks. RentUK shows you the one thing that matters next.</p>
+        <h2 class="land-h">Your Rental,<br><span>Calmly Sorted.</span></h2>
+        <p class="land-sub">Never miss rent, a repair or a legal check.</p>
+        </div>
         <div class="land-stage" aria-hidden="true">
           <div class="land-card lc-1"><i class="lc-bar warn"></i><small>Next up</small><strong>Gas safety check due</strong><span>by 4 December</span><em>Sort it${ICON.chevron}</em></div>
           <div class="land-card lc-2"><i class="lc-bar ok"></i><small>Rent</small><strong>£950 received</strong><span>Paid up · next due 1 January</span></div>
           <div class="land-card lc-3"><span class="lc-tick">${ICON.tick}</span><strong>All clear</strong><span>Nothing needs you today</span></div>
         </div>
+        <div class="land-group land-cta">
         <a class="btn btn-big land-go" href="?demo">Take a look${ICON.chevron}</a>
         <button class="link-btn land-setup" data-action="setup">or set up my property</button>
-        <p class="privacy-line">${ICON.lock}<span>Free · No sign-up · Your data stays on your phone</span></p>
+        </div>
+        <div class="land-group">
+        <p class="privacy-line">Free · No sign-up</p>
+        <p class="privacy-line tagline-line land-sign">${ICON.lock}<span>Your App. Your Data. Your Choice.</span></p>
+        </div>
       </div>`;
   }
 
