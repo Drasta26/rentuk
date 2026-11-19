@@ -34,25 +34,17 @@
     return (list || []).filter(d => d && (d.propertyId == null || d.propertyId === '' || d.propertyId === propertyId));
   }
 
-  // Compliance checklist (England, private rented sector). Informational only, not legal advice.
-  // kind 'date' = date of last certificate/check, valid for `months`; kind 'yes' = done or not.
-  // Checked against GOV.UK and HSE on 30 Oct 2026 (Renters' Rights Act changes from 1 May 2026).
-  const COMPLIANCE_ITEMS = [
-    { key: 'gas', label: 'Gas safety check', kind: 'date', months: 12,
-      hint: 'Gas Safe engineer every 12 months; copy to tenants within 28 days', url: 'https://www.hse.gov.uk/gas/domestic/faqlandlord.htm' },
-    { key: 'eicr', label: 'Electrical safety (EICR)', kind: 'date', months: 60,
-      hint: 'Qualified inspector at least every 5 years', url: 'https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-and-social-rented-sectors-guidance' },
-    { key: 'epc', label: 'Energy certificate (EPC)', kind: 'date', months: 120,
-      hint: 'Valid for 10 years', url: 'https://www.gov.uk/selling-a-home/energy-performance-certificates' },
-    { key: 'deposit', label: 'Deposit protected', kind: 'yes',
-      hint: 'In a government-backed scheme within 30 days', url: 'https://www.gov.uk/tenancy-deposit-protection' },
-    { key: 'alarms', label: 'Smoke and CO alarms', kind: 'yes',
-      hint: 'Fitted, and working on the first day of each tenancy', url: 'https://www.gov.uk/government/publications/smoke-and-carbon-monoxide-alarms-explanatory-booklet-for-landlords/the-smoke-and-carbon-monoxide-alarm-england-regulations-2015-qa-booklet-for-the-private-rented-sector-landlords-and-tenants' },
-    { key: 'rightToRent', label: 'Right to Rent checked', kind: 'yes',
-      hint: 'Before the tenancy starts', url: 'https://www.gov.uk/check-tenant-right-to-rent-documents' },
-    { key: 'rraInfo', label: "Renters' Rights info given", kind: 'yes',
-      hint: 'Official Information Sheet or written terms (replaced How to Rent from 1 May 2026)', url: 'https://www.gov.uk/government/publications/the-renters-rights-act-information-sheet-2026' }
-  ];
+  // Compliance rules per UK nation live in rules.js (checked against official sources; see the date there).
+  const RULES = (typeof module !== 'undefined' && module.exports) ? require('./rules.js') : root.RentUKRules;
+  const NATION_ITEMS = n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).items;
+  // Kept for older callers: the England checklist.
+  const COMPLIANCE_ITEMS = NATION_ITEMS('england');
+  const ALL_KEYS = [...new Set(Object.values(RULES.NATION_RULES).flatMap(r => r.items.map(i => i.key)))];
+  const EPC_BANDS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  // Plain labels. "Up to date" means what the landlord recorded is current; it is never a legal guarantee.
+  const STATUS_LABEL = { ok: 'Up to date', soon: 'Expiring soon', expired: 'Expired', missing: 'Action required',
+    action: 'Action required', na: 'Not applicable', unverified: 'Unable to verify' };
+  const SOON_DAYS = 60;
 
   function addMonths(isoDate, months) {
     const [y, m, d] = isoDate.split('-').map(Number);
@@ -64,25 +56,35 @@
     return Math.round((Date.parse(toIso) - Date.parse(fromIso)) / 86400000);
   }
 
-  // Score 0-100 for one property. Each item: ok = full marks, due within 30 days = half, else none.
-  function complianceScore(compliance, todayIso) {
+  // Score 0-100 for one property in one nation, from what the landlord has recorded.
+  // Each recorded value is a date (last check), true (done), 'na' (not applicable) or 'unsure'.
+  // Only legal duties count; not-applicable items are left out; up to date = 1, expiring soon = 0.5, else 0.
+  function complianceScore(compliance, todayIso, nation) {
     const c = compliance || {};
-    let points = 0;
-    const items = COMPLIANCE_ITEMS.map(item => {
-      let status = 'missing', expires = '', daysLeft = null;
-      if (item.kind === 'yes') {
-        status = c[item.key] === true ? 'ok' : 'missing';
-      } else if (typeof c[item.key] === 'string' && DATE_RE.test(c[item.key])) {
-        expires = addMonths(c[item.key], item.months);
+    let points = 0, counted = 0;
+    const items = NATION_ITEMS(nation).map(item => {
+      const v = c[item.key];
+      let status = 'missing', expires = '', daysLeft = null, note = '';
+      if (v === 'na' && item.canNA) status = 'na';
+      else if (v === 'unsure') status = 'unverified';
+      else if (item.kind === 'yes') status = v === true ? 'ok' : 'missing';
+      else if (typeof v === 'string' && DATE_RE.test(v)) {
+        expires = addMonths(v, item.months);
         daysLeft = daysBetween(todayIso, expires);
-        status = daysLeft < 0 ? 'expired' : daysLeft <= 30 ? 'soon' : 'ok';
+        status = daysLeft < 0 ? 'expired' : daysLeft <= SOON_DAYS ? 'soon' : 'ok';
+        if (item.key === 'epc' && item.minimum && EPC_BANDS.indexOf(c.epcRating) > EPC_BANDS.indexOf(item.minimum) && status !== 'expired') {
+          status = 'action'; note = `Rated ${c.epcRating}: below the minimum ${item.minimum} to let, unless an exemption is registered`;
+        }
       }
-      points += status === 'ok' ? 1 : status === 'soon' ? 0.5 : 0;
-      return { ...item, status, expires, daysLeft };
+      if (item.legal && status !== 'na') {
+        counted++;
+        points += status === 'ok' ? 1 : status === 'soon' ? 0.5 : 0;
+      }
+      return { ...item, status, expires, daysLeft, note, statusLabel: STATUS_LABEL[status] };
     });
-    const score = Math.round((points / COMPLIANCE_ITEMS.length) * 100);
+    const score = counted ? Math.round((points / counted) * 100) : 100;
     const level = score >= 90 ? 'great' : score >= 60 ? 'fair' : 'poor';
-    return { score, level, items };
+    return { score, level, items, counted };
   }
 
 
@@ -286,10 +288,10 @@
     const properties = [
       { id: 'demo_maple', name: 'Maple Court flat (demo)', address: '1 Example Road, Sampletown', nation: 'england',
         tenant: tenant('Sam Example', 1150, 120), createdAt: todayIso,
-        compliance: { gas: ago(100), eicr: ago(400), epc: ago(1000), deposit: true, alarms: true, rightToRent: true, rraInfo: true } },
+        compliance: { gas: ago(100), eicr: ago(400), epc: ago(1000), epcRating: 'C', deposit: true, alarms: true, rightToRent: true, rraInfo: true, licence: 'na', legionella: true } },
       { id: 'demo_oak', name: 'Oak Lane house (demo)', address: '2 Example Lane, Sampletown', nation: 'england',
         tenant: tenant('Alex Sample', 1450, 300), createdAt: todayIso,
-        compliance: { gas: ago(350), eicr: ago(1900), epc: ago(2000), deposit: true, alarms: true, rightToRent: true } },
+        compliance: { gas: ago(350), eicr: ago(1900), epc: ago(2000), epcRating: 'D', deposit: true, alarms: true, rightToRent: true, licence: 'na', legionella: true } },
       { id: 'demo_station', name: 'Station Road studio (demo)', address: '3 Example Street, Sampletown', nation: 'england',
         tenant: tenant('Jo Test', 795, 30), createdAt: todayIso,
         compliance: { epc: ago(700), deposit: true } }
@@ -329,10 +331,12 @@
   function cleanCompliance(c) {
     const out = {};
     if (!c || typeof c !== 'object') return out;
-    for (const item of COMPLIANCE_ITEMS) {
-      if (item.kind === 'date') { const d = date(c[item.key]); if (d) out[item.key] = d; }
-      else if (c[item.key] === true) out[item.key] = true;
+    for (const key of ALL_KEYS) {
+      const v = c[key];
+      if (v === true || v === 'na' || v === 'unsure') out[key] = v;
+      else { const d = date(v); if (d) out[key] = d; }
     }
+    if (EPC_BANDS.includes(c.epcRating)) out.epcRating = c.epcRating;
     return out;
   }
 
@@ -457,7 +461,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const own = [...reminders.map(r => ({ ...r, kind: 'std' })), ...RentUKLib.datesFor(aobReminders, p && p.id).filter(a => a.name).map(a => ({ ...a, kind: 'aob' }))];
     const auto = [];
     if (p) {
-      RentUKLib.complianceScore(p.compliance, todayIso()).items.filter(i => i.expires)
+      checksFor(p).items.filter(i => i.expires)
         .forEach(i => auto.push({ id: 'c-' + i.key, kind: 'auto', go: 'checks', name: i.label + ' due', dueDate: i.expires }));
       if (p.tenant && p.tenant.leaseEnd) auto.push({ id: 'lease', kind: 'auto', go: 'tenant', name: 'Lease ends · ' + p.tenant.name, dueDate: p.tenant.leaseEnd });
     }
@@ -239,6 +239,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 
+  // The property's checks, using the rules for the UK nation it is in.
+  const checksFor = (p, today) => RentUKLib.complianceScore(p && p.compliance, today || todayIso(), RentUKLib.nationOf(p));
+  const nationName = p => RentUKLib.NATIONS[RentUKLib.nationOf(p)];
   const ledgerFor = p => RentUKLib.rentLedger(p && p.tenant, payments, p && p.id, todayIso());
   // One line about rent for a property: paid up, overdue, in credit or not tracked.
   function rentState(p) {
@@ -259,14 +262,17 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rs.tone === 'bad') add(0, 'bad', `Rent overdue · ${rs.amount}`, `unpaid since ${ukDate(rs.L.oldestUnpaid)}`, { tab: 'money' });
     RentUKLib.sortIssues(issues.filter(i => i.propertyId === p.id && i.status !== 'done' && i.priority === 'urgent'))
       .forEach(i => add(1, 'bad', `Urgent repair: ${i.title}`, RentUKLib.ISSUE_STATUS[i.status], { act: 'repairs' }));
-    const r = RentUKLib.complianceScore(p.compliance, today);
+    const r = checksFor(p, today);
     r.items.filter(i => i.status === 'expired').forEach(i => add(2, 'bad', `${i.label} expired`, `on ${ukDate(i.expires)}`, { tab: 'checks' }));
+    r.items.filter(i => i.status === 'action').forEach(i => add(2, 'bad', `${i.label}: action required`, i.note, { tab: 'checks' }));
+    const unsure = r.items.filter(i => i.status === 'unverified');
+    if (unsure.length) add(5, 'warn', `${unsure.length} ${unsure.length === 1 ? 'check' : 'checks'} to confirm`, unsure.map(i => i.label).slice(0, 2).join(', ') + (unsure.length > 2 ? '…' : ''), { tab: 'checks' });
     r.items.filter(i => i.status === 'soon').forEach(i => add(3, 'warn', `${i.label} due`, `by ${ukDate(i.expires)}`, { tab: 'checks' }));
     allDates(p).filter(d => !d.completed && d.dueDate && d.kind !== 'auto' && daysFrom(d.dueDate) <= 14)
       .forEach(d => add(3, daysFrom(d.dueDate) < 0 ? 'bad' : 'warn', d.name, whenText(d.dueDate), { tab: 'checks' }));
     if (p.tenant && p.tenant.leaseEnd && daysFrom(p.tenant.leaseEnd) >= 0 && daysFrom(p.tenant.leaseEnd) <= 60)
       add(4, 'warn', 'Tenancy end date coming up', `${ukDate(p.tenant.leaseEnd)} · ${whenText(p.tenant.leaseEnd)}`, { act: 'tenant' });
-    const missing = r.items.filter(i => i.status === 'missing');
+    const missing = r.items.filter(i => i.status === 'missing' && i.legal);
     if (missing.length) add(5, 'warn', `${missing.length} ${missing.length === 1 ? 'check' : 'checks'} not recorded`, missing.map(i => i.label).slice(0, 2).join(', ') + (missing.length > 2 ? '…' : ''), { tab: 'checks' });
     const routine = issues.filter(i => i.propertyId === p.id && i.status !== 'done' && i.priority !== 'urgent').length;
     if (routine) add(6, 'info', `${routine} ${routine === 1 ? 'repair' : 'repairs'} in progress`, 'not urgent', { act: 'repairs' });
@@ -322,10 +328,11 @@ document.addEventListener('DOMContentLoaded', function() {
         if (L.rent) due += RentUKLib.dueDates(L.from > monthStart ? L.from : monthStart, today.slice(0, 8) + '31', L.day).length * L.rent;
         got += RentUKLib.received(payments, monthStart, today, q.id);
         const iss = RentUKLib.issueSummary(issues, q.id, today); open += iss.open; urgent += iss.urgent;
-        if (RentUKLib.complianceScore(q.compliance, today).items.every(i => i.status === 'ok')) upToDate++;
+        if (checksFor(q, today).items.every(i => i.status === 'ok' || i.status === 'na' || !i.legal)) upToDate++;
       });
-      const r = RentUKLib.complianceScore(p.compliance, today);
-      const done = r.items.filter(i => i.status === 'ok').length;
+      const r = checksFor(p, today);
+      const legal = r.items.filter(i => i.legal && i.status !== 'na');
+      const done = legal.filter(i => i.status === 'ok').length;
       const bad = items.filter(i => i.tone === 'bad').length;
       const row = it => `
         <button class="row attn-row tone-${it.tone}" data-action="attn" data-prop="${esc(it.propId)}" ${it.tab ? `data-go="${it.tab}"` : ''} ${it.act ? `data-act="${it.act}"` : ''}>
@@ -341,38 +348,39 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="stats home-stats">
           <button class="stat" data-tab="money"><small>Rent this month</small><strong>${money(got)}</strong><span>of ${money(due)} due</span></button>
           <button class="stat" ${all ? 'data-tab="property"' : 'data-action="repairs"'}><small>Repairs</small><strong class="${urgent ? 't-bad' : ''}">${open} open</strong><span>${urgent ? urgent + ' urgent' : 'none urgent'}</span></button>
-          <button class="stat" data-tab="checks"><small>${all ? 'Checks done' : 'Checks'}</small><strong>${all ? `${upToDate} of ${scope.length}` : `${done} of ${r.items.length}`}</strong><span>${all ? 'properties' : 'recorded as done'}</span></button>
+          <button class="stat" data-tab="checks"><small>${all ? 'Checks done' : 'Checks'}</small><strong>${all ? `${upToDate} of ${scope.length}` : `${done} of ${legal.length}`}</strong><span>${all ? 'all up to date' : 'up to date'}</span></button>
         </div>
         <div class="list-head"><span>${all ? 'Needs you · all properties' : 'Needs you · ' + esc(p.name)}</span></div>
         ${items.length ? pager('attn', items, h, properties.length > 1 ? 452 : 390, 74, row) : `
-          <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>Rent is up to date, no urgent repairs and every check is recorded. Enjoy it.</p></div></div>`}
+          <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>No overdue rent, no urgent repairs and every check you’ve recorded is up to date.</p></div></div>`}
         <p class="privacy-line tagline-line">${ICON.lock}<span>Your app. Your data. Your choice.</span></p>`;
     },
 
     checks(p, h) {
-      const r = RentUKLib.complianceScore(p.compliance, todayIso());
-      const done = r.items.filter(i => i.status === 'ok').length;
+      const r = checksFor(p);
+      const legal = r.items.filter(i => i.legal && i.status !== 'na');
+      const done = legal.filter(i => i.status === 'ok').length;
       const row = item => `
         <div class="row check-row status-${item.status}">
           <span class="dot dot-${item.status}" aria-hidden="true"></span>
           <button class="row-text" data-action="check-info" data-key="${esc(item.key)}">
-            <strong>${esc(item.label)}</strong><small>${statusText(item)}</small>
+            <strong>${esc(item.label)}${item.legal ? '' : ' <em class="gp">good practice</em>'}</strong><small class="st-${item.status}">${statusText(item)}</small>
           </button>
-          ${item.kind === 'yes'
+          ${item.kind === 'yes' && (item.status === 'ok' || item.status === 'missing')
             ? `<button class="check-toggle ${item.status === 'ok' ? 'on' : ''}" data-check="${esc(item.key)}" aria-pressed="${item.status === 'ok'}" aria-label="${esc(item.label)} done">${item.status === 'ok' ? ICON.tick : 'No'}</button>`
-            : `<button class="check-pill ${item.status === 'missing' ? 'add' : ''}" data-action="check-info" data-key="${esc(item.key)}" aria-label="${item.status === 'missing' ? 'Add' : 'Change'} date of last ${esc(item.label)}">${item.status === 'missing' ? 'Add date' : 'Update'}</button>`}
+            : `<button class="check-pill ${item.status === 'missing' ? 'add' : ''}" data-action="check-info" data-key="${esc(item.key)}" aria-label="${item.status === 'missing' ? 'Add' : 'Change'} ${esc(item.label)}">${item.status === 'missing' ? 'Add date' : 'Update'}</button>`}
         </div>`;
       return `
         <div class="screen-head">
           ${scoreRing(r.score, r.level, 64)}
-          <div class="grow"><h2>Checks &amp; dates</h2><p>${done} of ${r.items.length} legal checks done</p></div>
+          <div class="grow"><h2>Checks &amp; dates</h2><p>${done} of ${legal.length} legal checks up to date · ${esc(nationName(p))}</p></div>
           <button class="icon-btn" data-action="share" aria-label="Share my score (no personal details)">${ICON.megaphone}</button>
         </div>
         <button class="fab" data-action="add-date" aria-label="Add a date">${ICON.plus}</button>
-        ${pager('checks', [...r.items.map(i => ({ t: 'check', i })), { t: 'head' }, ...checkDates(p).map(d => ({ t: 'date', d }))], h, 320, 70,
+        ${pager('checks', [...r.items.map(i => ({ t: 'check', i })), { t: 'head' }, ...checkDates(p).map(d => ({ t: 'date', d }))], h, 330, 70,
           x => x.t === 'check' ? row(x.i) : x.t === 'date' ? dateRow(x.d) : `
           <div class="list-head dates-head"><span>Your dates</span><button class="pill-btn" data-action="calendar">${ICON.dates}Add to calendar</button></div>`)}
-        <p class="fine">England rules, checked against GOV.UK and HSE on 30 Oct 2026. A guide, not legal advice.</p>`;
+        <p class="fine">${esc(nationName(p))} rules, checked against official sources on ${esc(RentUKLib.RULES_VERIFIED)}. Based on what you record: a guide, not legal advice. <button class="link-btn inline" data-action="upcoming">What’s changing</button></p>`;
     },
 
     money(p, h) {
@@ -653,6 +661,7 @@ document.addEventListener('DOMContentLoaded', function() {
       resources: resourcesSheet,
       ask: () => openChat(p),
       'tax-info': taxInfoSheet,
+      upcoming: upcomingSheet,
       'export-csv': exportLedgerCsv,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
@@ -970,11 +979,11 @@ Use UK English. Keep answers short (under 200 words unless asked for more). Writ
 
   // Scores and totals only: no property names, addresses or tenant details.
   function chatSummary(p) {
-    const r = RentUKLib.complianceScore(p.compliance, todayIso());
+    const r = checksFor(p);
     const est = RentUKLib.rentalEstimate([p], expenses, RentUKLib.taxYearStart(todayIso()));
     const checks = r.items.map(i => `- ${i.label}: ${i.status}${i.expires ? ` (valid until ${i.expires})` : ''}`).join('\n');
     return `Summary of the user's current property (shared by the user; no personal details):
-Today: ${todayIso()}. Compliance score ${r.score}/100.
+Today: ${todayIso()}. Property in ${nationName(p)}. Compliance score ${r.score}/100.
 ${checks}
 Monthly rent: ${p.tenant && p.tenant.rentAmount ? '£' + p.tenant.rentAmount : 'not set'}.
 Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.costs}.`;
@@ -1163,20 +1172,54 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   function checkInfoSheet(key) {
-    const item = RentUKLib.COMPLIANCE_ITEMS.find(i => i.key === key);
-    if (!item) return;
     const p = getCurrentProperty();
-    const cur = (p.compliance || {})[key] || '';
+    const item = checksFor(p).items.find(i => i.key === key);
+    if (!item) return;
+    const comp = p.compliance || {};
+    const cur = comp[key];
+    const isDate = typeof cur === 'string' && /^\d{4}-/.test(cur) ? cur : '';
+    const answer = (id, label, on) => `<button class="chip ${on ? 'on' : ''}" data-answer="${id}" aria-pressed="${!!on}">${label}</button>`;
     openSheet(esc(item.label), `
-      <p class="story">${esc(item.hint)}</p>
-      ${item.kind === 'date' ? `${field('c-date', 'Date of the last one', 'date', cur, `max="${todayIso()}"`)}
-      <div class="sheet-actions">${cur ? '<button class="btn btn-quiet" id="c-clear">Clear</button>' : ''}<button class="btn" id="c-save">Save</button></div>` : ''}
-      <a class="btn btn-ghost" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Read the official guidance ↗</a>
-      <p class="fine">England rules, simplified. A guide, not legal advice.</p>`, s => {
-      if (item.kind !== 'date') return;
-      s.querySelector('#c-save').onclick = () => { const v = s.querySelector('#c-date').value; closeSheet(); updateCompliance(key, v); };
-      if (cur) s.querySelector('#c-clear').onclick = () => { closeSheet(); updateCompliance(key, ''); };
+      <p class="kind-badge ${item.legal ? 'legal' : 'good'}">${item.legal ? 'Legal duty' : 'Good practice'} · ${esc(nationName(p))}</p>
+      <p class="story">${esc(item.detail)}</p>
+      <p class="status-line st-${item.status}"><strong>${esc(item.statusLabel)}</strong>${item.status === 'ok' || item.status === 'soon' || item.status === 'expired' || item.status === 'action' ? ' · ' + statusText(item) : ''}</p>
+      ${item.kind === 'date' ? `<div class="field-row">
+        ${field('c-date', 'Date of the last one', 'date', isDate, `max="${todayIso()}"`)}
+        ${item.key === 'epc' ? `<label class="field" for="c-epc"><span>Rating</span><select id="c-epc"><option value="">Not set</option>${RentUKLib.EPC_BANDS.map(b => `<option ${comp.epcRating === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>` : ''}
+      </div>` : ''}
+      <div class="chips" role="group" aria-label="Your answer">
+        ${item.kind === 'yes' ? answer('yes', 'Done', cur === true) + answer('no', 'Not done', cur === undefined) : ''}
+        ${item.canNA ? answer('na', 'Not applicable', cur === 'na') : ''}
+        ${answer('unsure', 'Not sure', cur === 'unsure')}
+      </div>
+      <div class="sheet-actions">${item.kind === 'date' && cur ? '<button class="btn btn-quiet" id="c-clear">Clear</button>' : ''}${item.kind === 'date' ? '<button class="btn" id="c-save">Save date</button>' : ''}</div>
+      <a class="btn btn-ghost" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Read the official source ↗</a>
+      <p class="fine">Checked against official sources on ${esc(RentUKLib.RULES_VERIFIED)}. Simplified: a guide, not legal advice.</p>`, s => {
+      s.querySelectorAll('[data-answer]').forEach(b => b.onclick = () => {
+        const a = b.dataset.answer;
+        closeSheet();
+        updateCompliance(key, a === 'yes' ? true : a === 'no' ? '' : a);
+      });
+      const save = s.querySelector('#c-save');
+      if (save) save.onclick = () => {
+        const v = s.querySelector('#c-date').value;
+        const epc = s.querySelector('#c-epc');
+        if (v && v > todayIso()) return sheetError(s, 'The date can’t be in the future.');
+        closeSheet();
+        if (epc) updateCompliance('epcRating', epc.value);
+        updateCompliance(key, v);
+      };
+      const clear = s.querySelector('#c-clear');
+      if (clear) clear.onclick = () => { closeSheet(); updateCompliance(key, ''); };
     });
+  }
+
+  function upcomingSheet() {
+    const p = getCurrentProperty();
+    openSheet('What’s changing', `
+      <p class="sheet-lead"><span>${esc(nationName(p))}: announced changes that are not in force yet, as checked on ${esc(RentUKLib.RULES_VERIFIED)}. Your checklist only includes rules already in force.</span></p>
+      <ul class="usp">${RentUKLib.UPCOMING(RentUKLib.nationOf(p)).map(u => `<li>${esc(u)}</li>`).join('')}</ul>
+      <p class="fine">Dates can move. Check GOV.UK or your nation’s official site before acting.</p>`);
   }
 
   function sheetError(s, msg) {
@@ -1362,10 +1405,13 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   const ukDate = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
   function statusText(item) {
-    if (item.kind === 'yes') return item.status === 'ok' ? 'Done' : 'Not done yet';
-    if (item.status === 'missing') return 'Add the date of the last one';
+    if (item.status === 'na') return 'Not applicable';
+    if (item.status === 'unverified') return 'Unable to verify: you marked it not sure';
+    if (item.status === 'action') return esc(item.note);
+    if (item.kind === 'yes') return item.status === 'ok' ? 'Done' : 'Action required';
+    if (item.status === 'missing') return 'Action required: add the date of the last one';
     if (item.status === 'expired') return `Expired ${esc(ukDate(item.expires))}`;
-    return item.daysLeft <= 60 ? `Renew by ${esc(ukDate(item.expires))} · ${item.daysLeft === 1 ? '1 day' : item.daysLeft + ' days'} left` : `Valid until ${esc(ukDate(item.expires))}`;
+    return item.status === 'soon' ? `Expiring soon: renew by ${esc(ukDate(item.expires))} · ${item.daysLeft === 1 ? '1 day' : item.daysLeft + ' days'} left` : `Up to date until ${esc(ukDate(item.expires))}`;
   }
 
   function scoreRing(score, level, size) {
@@ -1435,7 +1481,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const events = [];
     const today = todayIso();
     properties.forEach(p => {
-      RentUKLib.complianceScore(p.compliance, today).items
+      checksFor(p, today).items
         .filter(i => i.expires)
         .forEach(i => events.push({
           uid: `${p.id}-${i.key}-${i.expires}`, date: i.expires,
@@ -1465,13 +1511,12 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   function openMoveInPack() {
     const p = getCurrentProperty();
     if (!p) return;
-    const r = RentUKLib.complianceScore(p.compliance, todayIso());
+    const r = checksFor(p);
     const box = ok => ok ? '☑' : '☐';
-    const item = key => r.items.find(i => i.key === key);
-    const certLine = key => {
-      const i = item(key);
-      return `<li>${box(i.status === 'ok')} ${esc(i.label)}${i.expires ? ` — valid until ${esc(ukDate(i.expires))}` : ''}: copy given to tenant</li>`;
-    };
+    const line = i => `<li>${box(i.status === 'ok' || i.status === 'na')} ${esc(i.label)}${i.status === 'na' ? ' — not applicable' : i.expires ? ` — valid until ${esc(ukDate(i.expires))}` : ''}: ${esc(i.hint)}</li>`;
+    const before = r.items.filter(i => i.key !== 'deposit' && i.key !== 'alarms' && i.legal);
+    const dep = r.items.find(i => i.key === 'deposit');
+    const alarms = r.items.find(i => i.key === 'alarms');
     const rooms = ['Entrance / hall', 'Living room', 'Kitchen', 'Bathroom', 'Bedroom 1', 'Bedroom 2', 'Garden / outside'];
     const t = p.tenant || {};
     const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -1487,31 +1532,28 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       </style></head><body>
       <button class="print">🖨️ Print or save as PDF</button>
       <h1>Tenant move-in pack</h1>
-      <p class="meta">${esc(p.name)}${p.address ? ' · ' + esc(p.address) : ''}<br>
+      <p class="meta">${esc(p.name)}${p.address ? ' · ' + esc(p.address) : ''} · ${esc(nationName(p))}<br>
         Tenant: ${esc(t.name || '____________________')} · Move-in date: ${esc(t.leaseStart ? ukDate(t.leaseStart) : '____________')}</p>
 
       <h2>1. Before the tenant moves in</h2>
       <ul>
-        <li>${box(item('rightToRent').status === 'ok')} Right to Rent checked for every adult, copies of documents kept</li>
-        <li>${box(item('rraInfo').status === 'ok')} Renters' Rights Act Information Sheet or written statement of terms given (as a printed copy or attached PDF — a link alone is not valid)</li>
-        ${certLine('gas')}
-        ${certLine('eicr')}
-        ${certLine('epc')}
+        ${before.map(line).join('')}
+        <li>☐ Copies of the certificates above given to the tenant</li>
       </ul>
 
       <h2>2. On move-in day</h2>
       <ul>
-        <li>${box(item('alarms').status === 'ok')} Every smoke alarm and CO alarm tested and working (tenant initials: ______)</li>
+        ${alarms ? `<li>${box(alarms.status === 'ok')} ${esc(alarms.label)} tested and working: ${esc(alarms.hint)} (tenant initials: ______)</li>` : ''}
         <li>☐ Inventory below completed and signed by both</li>
         <li>☐ Meter readings taken (below)</li>
         <li>☐ Keys handed over (below)</li>
         <li>☐ Stopcock, boiler, fuse box and alarm locations shown to tenant</li>
       </ul>
 
-      <h2>3. Within 30 days</h2>
+      ${dep ? `<h2>3. Deposit</h2>
       <ul>
-        <li>${box(item('deposit').status === 'ok')} Deposit protected in a government-backed scheme and its required information given to the tenant</li>
-      </ul>
+        <li>${box(dep.status === 'ok' || dep.status === 'na')} ${esc(dep.label)}${dep.status === 'na' ? ' — no deposit taken' : ''}: ${esc(dep.hint)}</li>
+      </ul>` : ''}
 
       <h2>Meter readings</h2>
       <table><tr><th>Meter</th><th>Reading</th><th>Serial / location</th></tr>
@@ -1528,7 +1570,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <h2>Signatures</h2>
       <table><tr><th>Landlord</th><th>Tenant</th></tr><tr><td style="height:56px">Signed:<br>Date:</td><td>Signed:<br>Date:</td></tr></table>
 
-      <p class="note">Made with RentUK. Checklist for England, based on GOV.UK and HSE guidance checked on 30 Oct 2026. Informational only, not legal advice.</p>
+      <p class="note">Made with RentUK. Checklist for ${esc(nationName(p))}, based on official guidance checked on ${esc(RentUKLib.RULES_VERIFIED)}. Informational only, not legal advice.</p>
       </body></html>`;
     const w = window.open('', '_blank');
     if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
@@ -1557,8 +1599,10 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     overlay.setAttribute('aria-label', 'Property setup');
     document.body.appendChild(overlay);
     makeDialog(overlay);
-    const dates = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'date');
-    const yeses = RentUKLib.COMPLIANCE_ITEMS.filter(i => i.kind === 'yes');
+    const items = () => RentUKLib.NATION_ITEMS(answers.nation).filter(i => i.legal);
+    // The chosen nation's legal checks (the nation is picked on step 1, before these are shown).
+    const dates = () => items().filter(i => i.kind === 'date');
+    const yeses = () => items().filter(i => i.kind === 'yes');
     let step = 0;
 
     function frame(body, nextLabel) {
@@ -1597,14 +1641,14 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <p class="wizard-kicker">Step 2 of 3</p>
           <h3>When were these last done?</h3>
           <p class="wizard-hint">Not sure? Leave it blank and add it later.</p>
-          ${dates.map(i => `
+          ${dates().map(i => `
             <label class="wizard-label" for="wz-${i.key}">${esc(i.label)} <small>${esc(i.hint)}</small></label>
             <input id="wz-${i.key}" type="date" max="${todayIso()}" value="${esc(answers.compliance[i.key] || '')}">`).join('')}`, 'Next →');
       } else if (step === 2) {
         frame(`
           <p class="wizard-kicker">Step 3 of 3</p>
           <h3>Quick yes or no</h3>
-          ${yeses.map(i => `
+          ${yeses().map(i => `
             <div class="yn-row">
               <span>${esc(i.label)}<small>${esc(i.hint)}</small></span>
               <button class="yn ${answers.compliance[i.key] ? 'on' : ''}" data-key="${esc(i.key)}" aria-pressed="${!!answers.compliance[i.key]}">${answers.compliance[i.key] ? 'Yes' : 'No'}</button>
@@ -1614,14 +1658,14 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           render();
         });
       } else {
-        const r = RentUKLib.complianceScore(answers.compliance, todayIso());
+        const r = RentUKLib.complianceScore(answers.compliance, todayIso(), answers.nation);
         const todo = r.items.filter(i => i.status !== 'ok').slice(0, 3);
         frame(`
           <p class="wizard-kicker">All set</p>
           <h3>Your compliance score</h3>
           <div class="wizard-score">${scoreRing(r.score, r.level, 150)}</div>
           ${todo.length ? `<p class="wizard-hint">Next to fix:</p><ul class="wizard-todo">${todo.map(i => `<li><span aria-hidden="true">${STATUS_ICON[i.status]}</span> ${esc(i.label)}</li>`).join('')}</ul>`
-            : '<p class="wizard-hint">🎉 Every check is complete. Nice work.</p>'}`, 'Go to my dashboard');
+            : '<p class="wizard-hint">🎉 Everything you recorded is up to date. Nice work.</p>'}`, 'Go to my dashboard');
         animateScores(overlay);
       }
     }
@@ -1634,7 +1678,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         answers.rent = overlay.querySelector('#wz-rent').value;
         answers.nation = overlay.querySelector('#wz-nation').value;
       } else if (step === 1) {
-        dates.forEach(i => {
+        dates().forEach(i => {
           const v = overlay.querySelector('#wz-' + i.key).value;
           if (v) answers.compliance[i.key] = v; else delete answers.compliance[i.key];
         });
@@ -1693,9 +1737,9 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     g.fillStyle = '#ffffff'; g.font = `800 200px ${font}`;
     g.fillText(String(score), 540, 570);
     g.fillStyle = colour; g.font = `700 56px ${font}`;
-    g.fillText(level === 'great' ? 'On top of it 💪' : level === 'fair' ? 'Getting there' : 'Work in progress', 540, 840);
+    g.fillText(level === 'great' ? 'Checks up to date' : level === 'fair' ? 'Getting there' : 'Work in progress', 540, 840);
     g.fillStyle = '#cbd5e1'; g.font = `400 40px ${font}`;
-    g.fillText(`${done} of ${total} landlord checks complete`, 540, 905);
+    g.fillText(`${done} of ${total} legal checks up to date`, 540, 905);
     g.fillStyle = '#94a3b8'; g.font = `500 34px ${font}`;
     g.fillText('RentUK · free, private, no sign-up · What’s your score?', 540, 1010);
     return c;
@@ -1704,9 +1748,9 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   async function shareScore() {
     const property = getCurrentProperty();
     if (!property) return;
-    const r = RentUKLib.complianceScore(property.compliance, todayIso());
-    const done = r.items.filter(i => i.status === 'ok').length;
-    const canvas = drawShareCard(r.score, r.level, done, r.items.length);
+    const r = checksFor(property);
+    const legal = r.items.filter(i => i.legal && i.status !== 'na');
+    const canvas = drawShareCard(r.score, r.level, legal.filter(i => i.status === 'ok').length, legal.length);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     const file = new File([blob], `rentuk-score-${r.score}.png`, { type: 'image/png' });
     const text = `My rental compliance score is ${r.score}/100 on RentUK. What's yours?`;

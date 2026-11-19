@@ -115,7 +115,7 @@ const { complianceScore, cleanCompliance } = require('../lib.js');
 test('complianceScore is 0 for an empty checklist and 100 when all current', () => {
   assert.equal(complianceScore({}, '2026-10-30').score, 0);
   const all = { gas: '2026-06-01', eicr: '2025-01-01', epc: '2020-01-01',
-    deposit: true, alarms: true, rightToRent: true, rraInfo: true };
+    deposit: true, alarms: true, rightToRent: true, rraInfo: true, licence: 'na', legionella: true };
   const r = complianceScore(all, '2026-10-30');
   assert.equal(r.score, 100);
   assert.equal(r.level, 'great');
@@ -129,13 +129,13 @@ test('complianceScore marks expired and due-soon certificates', () => {
   assert.equal(gas.expires, '2026-11-15');
   assert.equal(gas.daysLeft, 16);
   assert.equal(eicr.status, 'expired');
-  assert.equal(r.score, Math.round(0.5 / 7 * 100));
+  assert.equal(r.score, Math.round(0.5 / 9 * 100));
 });
 
 test('cleanCompliance keeps only known keys with valid values', () => {
   assert.deepEqual(
-    cleanCompliance({ gas: '2026-01-01', epc: 'soon', deposit: 'yes', alarms: true, evil: '<x>' }),
-    { gas: '2026-01-01', alarms: true }
+    cleanCompliance({ gas: '2026-01-01', epc: 'soon', deposit: 'yes', alarms: true, evil: '<x>', licence: 'na', legionella: 'unsure', epcRating: 'Z' }),
+    { gas: '2026-01-01', alarms: true, licence: 'na', legionella: 'unsure' }
   );
   assert.deepEqual(cleanCompliance(null), {});
 });

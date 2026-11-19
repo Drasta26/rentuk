@@ -769,3 +769,19 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .btn-row { display: flex; flex-wrap: wrap; gap: 4px 16px; }
 
 .btn-row { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+
+/* ---- Iteration 5: nation-aware checks ---- */
+.dot-na { background: #cbd5e1 !important; }
+.dot-unverified { background: #a78bfa !important; }
+.dot-action { background: var(--bad) !important; }
+.st-expired, .st-action { color: var(--bad) !important; }
+.st-soon, .st-missing, .st-unverified { color: #b45309 !important; }
+.st-ok { color: var(--ok); }
+.st-na { color: var(--muted); }
+.gp { font-style: normal; font-weight: 600; font-size: 0.7rem; color: var(--muted); background: var(--tint); padding: 1px 6px; border-radius: 999px; vertical-align: 2px; }
+.kind-badge { display: inline-block; width: fit-content; padding: 4px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
+.kind-badge.legal { background: rgba(79, 70, 229, 0.12); color: var(--brand-text); }
+.kind-badge.good { background: rgba(5, 150, 105, 0.12); color: #047857; }
+.status-line { font-size: 0.92rem; }
+.link-btn.inline { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; }
+.check-row.status-na .row-text strong { color: var(--muted); }
