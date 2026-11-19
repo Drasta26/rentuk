@@ -139,19 +139,16 @@
   // so this is skipped when index.html is opened straight from a folder.
   if (!('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
 
-  // Reload only after the user taps update; the first install also changes controller and must not reload.
-  let updateRequested = false;
-  function offerUpdate(worker) {
-    showBar('pwa-update', 'New version available.', 'Tap to update', bar => {
-      bar.remove();
-      updateRequested = true;
-      worker.postMessage({ type: 'SKIP_WAITING' });
-    });
-  }
+  // Updates install by themselves. When a new version takes over, reload once,
+  // unless a form is open (then the new version loads next time the app opens).
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  function offerUpdate(worker) { worker.postMessage({ type: 'SKIP_WAITING' }); }
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!updateRequested) return;
-    updateRequested = false;
+    if (!hadController || reloaded) return;
+    if (document.querySelector('.sheet, .sheet-backdrop, dialog[open]')) return;
+    reloaded = true;
     location.reload();
   });
 
