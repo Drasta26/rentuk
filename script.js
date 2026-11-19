@@ -1110,13 +1110,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function menuSheet() {
     const item = (action, icon, title, text) =>
-      `<button class="pick menu-item" data-go="${action}">${chip(icon, 'sky', 'ichip-sm')}<span class="grow"><strong>${title}</strong><small>${text}</small></span>${ICON.chevron}</button>`;
+      `<button class="pick menu-item" data-go="${action}"><span class="menu-ico mi-${action}">${ICON[icon]}</span><span class="grow"><strong>${title}</strong><small>${text}</small></span>${ICON.chevron}</button>`;
     openSheet('Menu', `
       <div class="pick-list">
         ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
-        ${item('resources', 'info', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
-        ${item('feedback', 'thumb', 'Feedback', 'Tell us what to fix')}
-        ${item('about', 'sparkle', 'About and privacy', 'Why RentUK exists')}
+        ${item('resources', 'doc', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
+        ${item('feedback', 'chat', 'Feedback', 'Tell us what to fix')}
+        ${item('about', 'info', 'About and privacy', 'Why RentUK exists')}
         ${item('support', 'heart', 'Support RentUK', 'Share it or chip in')}
       </div>`, s => {
       const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet, support: supportSheet };
@@ -1200,12 +1200,13 @@ document.addEventListener('DOMContentLoaded', function() {
   // Ways to support RentUK: fund it, share it, follow along. Never nagging, never guilt.
   function supportSheet() {
     openSheet('Support RentUK', `
-      <p class="support-big">Built by one. Funded by many.</p>
-      <p class="story">Your App. Your Data. Your Choice. RentUK has no adverts and never sells your data. If it helps you, here’s how you can help it.</p>
-      ${SUPPORT_URL ? `<a class="btn btn-big" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>
-        <p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>` : ''}
-      <button class="btn ${SUPPORT_URL ? 'btn-quiet' : 'btn-big'}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
-      ${CHANNELS.map(c => `<a class="link-btn support-link" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.label)}</a>`).join('')}`, s => {
+      <p class="sheet-lead">${ICON.heart}<span>Built by one. Funded by many. RentUK has no adverts and never sells your data. If it helps you, here’s how you can help it.</span></p>
+      <div class="stack">
+        ${SUPPORT_URL ? `<a class="btn" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>` : ''}
+        <button class="btn ${SUPPORT_URL ? 'btn-ghost' : ''}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
+        ${CHANNELS.map(c => `<a class="btn btn-ghost" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${ICON.video}${esc(c.label)}</a>`).join('')}
+      </div>
+      ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>' : ''}`, s => {
       const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
       btn.onclick = async () => {
         const text = 'RentUK: a free, private app for UK landlords. Never miss rent, a repair or a legal check.';
@@ -1216,6 +1217,7 @@ document.addEventListener('DOMContentLoaded', function() {
       };
     });
   }
+
   function feedbackSheet() {
     openSheet('How is RentUK for you?', `
       <div class="stack">

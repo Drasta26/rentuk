@@ -939,6 +939,12 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .land-group { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
 .land-cta { gap: 4px; }
 
-/* Support RentUK sheet (19 Nov 2026) */
-.support-big { font-size: 1.3rem; font-weight: 800; text-align: center; color: #4f46e5; margin: 4px 0; }
-.support-link { display: block; text-align: center; margin-top: 4px; }
+/* Menu (19 Nov 2026): floating, colour-coded icons instead of identical blue squares */
+.menu-ico { flex: none; width: 34px; height: 34px; display: grid; place-items: center; }
+.menu-ico svg { width: 26px; height: 26px; stroke-width: 1.9; }
+.menu-ico svg { filter: drop-shadow(0 3px 5px rgba(15, 23, 42, 0.18)); }
+.menu-item .mi-data, .menu-item .mi-data svg { color: #4f46e5; }
+.menu-item .mi-resources, .menu-item .mi-resources svg { color: #0d9488; }
+.menu-item .mi-feedback, .menu-item .mi-feedback svg { color: #d97706; }
+.menu-item .mi-about, .menu-item .mi-about svg { color: #0284c7; }
+.menu-item .mi-support, .menu-item .mi-support svg { color: #e11d48; }
