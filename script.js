@@ -1170,7 +1170,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // Public feedback address: an addy.io forwarding alias, so no personal email appears in the app or code.
-  const FEEDBACK_EMAIL = 'f7576a67-4e35-4c5b-967f-bffcc1c3a98a@anonaddy.me';
+  const FEEDBACK_EMAIL = 'fumr8uw9@anonaddy.me';
   function feedbackSheet() {
     openSheet('How is RentUK for you?', `
       <div class="stack">
