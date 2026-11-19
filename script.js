@@ -117,6 +117,8 @@ document.addEventListener('DOMContentLoaded', function() {
     mail: svg('<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M4 7l8 6 8-6"/>'),
     clipboard: svg('<rect x="5" y="4" width="14" height="17" rx="3"/><path d="M9 3.5h6v3H9z"/><path d="M9 12h6M9 16h4"/>'),
     sparkle: svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M18.5 16l.6 1.6 1.6.6-1.6.6-.6 1.7-.6-1.7-1.6-.6 1.6-.6z"/>'),
+    heart: svg('<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>'),
+    share: svg('<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>'),
     megaphone: svg('<path d="M4 10v4h3l8 4V6L7 10z"/><path d="M18 9.5a3.5 3.5 0 0 1 0 5"/>'),
     user: svg('<circle cx="12" cy="8" r="4"/><path d="M4 20a8 8 0 0 1 16 0"/>'),
     wrench: svg('<path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3 6.7 20l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2 1-3z"/>'),
@@ -1115,8 +1117,9 @@ document.addEventListener('DOMContentLoaded', function() {
         ${item('resources', 'info', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
         ${item('feedback', 'thumb', 'Feedback', 'Tell us what to fix')}
         ${item('about', 'sparkle', 'About and privacy', 'Why RentUK exists')}
+        ${item('support', 'heart', 'Support RentUK', 'Share it or chip in')}
       </div>`, s => {
-      const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet };
+      const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet, support: supportSheet };
       s.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go[b.dataset.go]());
     });
   }
@@ -1189,6 +1192,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Public feedback address: an addy.io forwarding alias, so no personal email appears in the app or code.
   const FEEDBACK_EMAIL = 'fumr8uw9@anonaddy.me';
+  // "Support privately": the owner's personal Stripe Payment Link (customer chooses the amount).
+  // Leave empty and the button stays hidden, so it never leads nowhere.
+  const SUPPORT_URL = '';
+  const CHANNELS = [{ label: 'YouTube: The Mental SPA', url: 'https://www.youtube.com/@BeWithBreath' }];
+
+  // Ways to support RentUK: fund it, share it, follow along. Never nagging, never guilt.
+  function supportSheet() {
+    openSheet('Support RentUK', `
+      <p class="support-big">Built by one. Funded by many.</p>
+      <p class="story">Your App. Your Data. Your Choice. RentUK has no adverts and never sells your data. If it helps you, here’s how you can help it.</p>
+      ${SUPPORT_URL ? `<a class="btn btn-big" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>
+        <p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>` : ''}
+      <button class="btn ${SUPPORT_URL ? 'btn-quiet' : 'btn-big'}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
+      ${CHANNELS.map(c => `<a class="link-btn support-link" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.label)}</a>`).join('')}`, s => {
+      const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
+      btn.onclick = async () => {
+        const text = 'RentUK: a free, private app for UK landlords. Never miss rent, a repair or a legal check.';
+        try {
+          if (navigator.share) { await navigator.share({ title: 'RentUK', text, url: APP_LINK }); label.textContent = 'Thank you for sharing'; return; }
+          await navigator.clipboard.writeText(`${text} ${APP_LINK}`); label.textContent = 'Copied, ready to paste';
+        } catch (e) { /* share sheet closed */ }
+      };
+    });
+  }
   function feedbackSheet() {
     openSheet('How is RentUK for you?', `
       <div class="stack">
