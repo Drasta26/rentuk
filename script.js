@@ -10,13 +10,12 @@ document.addEventListener('DOMContentLoaded', function() {
     return { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
   };
   // Demo mode (?demo): made-up data in memory only, so the visitor's real data is never touched.
-  // A first visit (nothing saved yet) opens the same sample dashboard, so people see the app before typing anything.
-  // ?setup skips the preview and starts the real setup.
+  // A first visit (nothing saved yet) opens a simple welcome page; "See an example" opens the demo.
   const params = new URLSearchParams(location.search);
   let store;
   try { store = window.localStorage; store.getItem('_'); } catch (e) { store = null; }
   const hasRealData = !!store && asList(readJson(store, 'properties', []), []).length > 0;
-  const isPreview = !!store && !hasRealData && !params.has('demo') && !params.has('setup');
+  const isPreview = false; // the sample dashboard on first visit was too much at once
   const isDemo = params.has('demo') || isPreview;
   const storageMissing = !store && !isDemo;
   if (!store || isDemo) store = memoryStore();
@@ -147,7 +146,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let screen = 'home';
   let moneyView = 'rent';
   let propView = 'main';
-  let homeScope = 'one';
+  let homeList = false; // Home shows one thing; "more things to do" opens the full list
   const pageAt = {};
 
   function loadMainUI() {
@@ -178,6 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   function go(tab) {
     screen = SCREENS[tab] ? tab : 'home';
+    homeList = false;
     propView = 'main';
     render(true);
     document.getElementById('main').focus({ preventScroll: true });
@@ -312,10 +312,10 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="welcome glass">
         <img src="icons/icon-512.png" alt="" width="112" height="112" class="welcome-logo">
         <h2 class="welcome-h">Landlording, <span>sorted.</span></h2>
-        <p class="welcome-sub">Your legal checks, rent, costs and key dates in one calm place. Set up in about a minute.</p>
-        <button class="btn btn-big" data-action="setup">Set up my property</button>
-        <a class="btn btn-ghost" href="?demo">Look around with sample data</a>
-        <p class="privacy-line">${ICON.lock}<span>Your app. Your data. Your choice. Everything stays on this device.</span></p>
+        <p class="welcome-sub">Rent, repairs and safety checks in one calm place. RentUK tells you what needs doing, one thing at a time.</p>
+        <button class="btn btn-big" data-action="setup">Get started</button>
+        <a class="link-btn welcome-demo" href="?demo">See an example first</a>
+        <p class="privacy-line">${ICON.lock}<span>Free. No account. Your data stays on this phone.</span></p>
       </div>`;
   }
 
@@ -341,41 +341,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const SCREENS = {
     home(p, h) {
-      const all = homeScope === 'all' && properties.length > 1;
-      const scope = all ? properties : [p];
-      const items = scope.flatMap(q => attentionFor(q, all)).sort((x, y) => x.rank - y.rank);
+      // Calm by design: the single most important thing, a quiet summary, and everything else one tap away.
+      const many = properties.length > 1;
+      const scope = many ? properties : [p];
+      const items = scope.flatMap(q => attentionFor(q, many)).sort((x, y) => x.rank - y.rank);
       const today = todayIso(), monthStart = today.slice(0, 8) + '01';
-      let due = 0, got = 0, open = 0, urgent = 0, upToDate = 0;
+      let due = 0, got = 0, open = 0, upToDate = 0;
       scope.forEach(q => {
-        const L = ledgerFor(q);
         if (q.tenant) due += RentUKLib.expectedBetween(q.tenant, monthStart, today.slice(0, 8) + '31');
         got += RentUKLib.received(payments, monthStart, today, q.id);
-        const iss = RentUKLib.issueSummary(issues, q.id, today); open += iss.open; urgent += iss.urgent;
+        open += RentUKLib.issueSummary(issues, q.id, today).open;
         if (checksFor(q, today).items.every(i => i.status === 'ok' || i.status === 'na' || !i.legal)) upToDate++;
       });
       const r = checksFor(p, today);
       const legal = r.items.filter(i => i.legal && i.status !== 'na');
       const done = legal.filter(i => i.status === 'ok').length;
-      const bad = items.filter(i => i.tone === 'bad').length;
+      const nav = it => `data-action="attn" data-prop="${esc(it.propId)}" ${it.tab ? `data-go="${it.tab}"` : ''} ${it.act ? `data-act="${it.act}"` : ''}`;
       const row = it => `
-        <button class="row attn-row tone-${it.tone}" data-action="attn" data-prop="${esc(it.propId)}" ${it.tab ? `data-go="${it.tab}"` : ''} ${it.act ? `data-act="${it.act}"` : ''}>
+        <button class="row attn-row tone-${it.tone}" ${nav(it)}>
           <span class="attn-dot" aria-hidden="true"></span>
           <span class="row-text"><strong>${esc(it.title)}</strong><small>${esc(it.text)}</small></span>${ICON.chevron}
         </button>`;
+      if (homeList && items.length > 1) return `
+        <div class="list-top"><button class="back-btn" data-action="home-back">${ICON.back}Home</button>
+          <h2>Everything to do <span>${items.length}</span></h2></div>
+        ${pager('attn', items, h, 190, 74, row)}`;
+      const top = items[0];
+      const n = items.length;
       return `
         <div class="hello"><h2>${greeting()}</h2>
-          <p>${items.length ? `${items.length} ${items.length === 1 ? 'thing needs' : 'things need'} you${bad ? `, ${bad} urgent` : ''}.` : 'Nothing needs you right now.'}</p></div>
-        ${properties.length > 1 ? `<div class="seg seg-2" role="group" aria-label="Show">
-          <button data-scope-home="one" class="${all ? '' : 'on'}" aria-pressed="${!all}">This property</button>
-          <button data-scope-home="all" class="${all ? 'on' : ''}" aria-pressed="${all}">All ${properties.length}</button></div>` : ''}
-        <div class="stats home-stats">
-          <button class="stat" data-tab="money"><small>Rent this month</small><strong>${money(got)}</strong><span>of ${money(due)} due</span></button>
-          <button class="stat" ${all ? 'data-tab="property"' : 'data-action="repairs"'}><small>Repairs</small><strong class="${urgent ? 't-bad' : ''}">${open} open</strong><span>${urgent ? urgent + ' urgent' : 'none urgent'}</span></button>
-          <button class="stat" data-tab="checks"><small>${all ? 'Checks done' : 'Checks'}</small><strong>${all ? `${upToDate} of ${scope.length}` : `${done} of ${legal.length}`}</strong><span>${all ? 'all up to date' : 'up to date'}</span></button>
+          <p>${n === 0 ? 'Everything’s on track.' : n === 1 ? 'Just one thing needs you.' : 'Here’s the most important thing.'}</p></div>
+        ${top ? `
+        <button class="hero-task glass tone-${top.tone}" ${nav(top)}>
+          <span class="hero-label">${top.tone === 'bad' ? 'Do this first' : 'Next up'}</span>
+          <strong>${esc(top.title)}</strong>
+          <small>${esc(top.text)}</small>
+          <span class="hero-go">Sort it${ICON.chevron}</span>
+        </button>
+        ${n > 1 ? `<button class="more-btn" data-action="home-list">${n - 1} more ${n - 1 === 1 ? 'thing' : 'things'} to do${ICON.chevron}</button>` : ''}` : `
+        <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>No overdue rent, no urgent repairs and every check you’ve recorded is up to date.</p></div></div>`}
+        <div class="quiet-sum" aria-label="Summary">
+          <button data-tab="money"><small>Rent this month</small><strong>${money(got)}</strong><span>of ${money(due)}</span></button>
+          <button ${many ? 'data-tab="property"' : 'data-action="repairs"'}><small>Repairs</small><strong>${open}</strong><span>open</span></button>
+          <button data-tab="checks"><small>Checks</small><strong>${many ? `${upToDate}/${scope.length}` : `${done}/${legal.length}`}</strong><span>${many ? 'properties' : 'up to date'}</span></button>
         </div>
-        <div class="list-head"><span>${all ? 'Needs you · all properties' : 'Needs you · ' + esc(p.name)}</span></div>
-        ${items.length ? pager('attn', items, h, properties.length > 1 ? 452 : 390, 74, row) : `
-          <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>No overdue rent, no urgent repairs and every check you’ve recorded is up to date.</p></div></div>`}
         <p class="privacy-line tagline-line">${ICON.lock}<span>Your app. Your data. Your choice.</span></p>`;
     },
 
@@ -780,7 +789,6 @@ document.addEventListener('DOMContentLoaded', function() {
       if (again) again.focus();
       return;
     }
-    if (t.dataset.scopeHome) { homeScope = t.dataset.scopeHome; delete pageAt.attn; render(); return; }
     if (t.dataset.money) { moneyView = t.dataset.money; render(); document.querySelector(`[data-money="${moneyView}"]`).focus(); return; }
     const a = t.dataset.action;
     if (!a) return;
@@ -806,7 +814,10 @@ document.addEventListener('DOMContentLoaded', function() {
       'export-csv': exportLedgerCsv,
       'check-info': () => checkInfoSheet(t.dataset.key),
       'add-expense': () => expenseSheet(p),
+      'home-list': () => { homeList = true; delete pageAt.attn; render(true); },
+      'home-back': () => { homeList = false; render(true); },
       attn: () => {
+        homeList = false;
         if (t.dataset.prop && t.dataset.prop !== String(p.id)) { currentPropertyId = t.dataset.prop; writeAll(store, { currentPropertyId: String(currentPropertyId) }); }
         if (t.dataset.act === 'repairs') { screen = 'property'; propView = 'repairs'; render(true); }
         else if (t.dataset.act === 'tenant') { render(); tenantSheet(getCurrentProperty()); }
