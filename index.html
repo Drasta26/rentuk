@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8">
     <!-- Only this app's own files may run. Network access is limited to the RentUK chat relay. -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://rentuk-chat.rentuk.workers.dev; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>RentUK • Property Management for UK Landlords</title>
+    <title>RentUK · Free landlord app for rent, checks and repairs</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
@@ -15,7 +15,23 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="RentUK">
-    <meta name="description" content="RentUK — The simplest property management app for UK landlords. Track rent, reminders, and expenses in one place.">
+    <meta name="description" content="Free, private app for UK landlords. Track rent, gas safety, EICR, EPC and deposit dates, repairs and tax, with rules for England, Wales, Scotland and Northern Ireland. No sign-up.">
+    <link rel="canonical" href="https://drasta26.github.io/rentuk/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="RentUK">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:url" content="https://drasta26.github.io/rentuk/">
+    <meta property="og:title" content="RentUK · Your Rental, Calmly Sorted.">
+    <meta property="og:description" content="Never miss rent, a repair or a legal check. Free for UK landlords, no sign-up, and your property data stays on your device.">
+    <meta property="og:image" content="https://drasta26.github.io/rentuk/icons/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="RentUK: Your Rental, Calmly Sorted. Never miss rent, a repair or a legal check.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="RentUK · Your Rental, Calmly Sorted.">
+    <meta name="twitter:description" content="Never miss rent, a repair or a legal check. Free for UK landlords, no sign-up.">
+    <meta name="twitter:image" content="https://drasta26.github.io/rentuk/icons/og-image.png">
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"RentUK","url":"https://drasta26.github.io/rentuk/","applicationCategory":"FinanceApplication","operatingSystem":"Any (web browser)","inLanguage":"en-GB","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"GBP"},"description":"Free, private app for UK landlords to track rent, safety certificates, deposits, repairs and tax. No sign-up; property data stays on the device.","license":"https://opensource.org/licenses/MIT"}</script>
 </head>
 <body>
     <a href="#main" class="skip-link">Skip to content</a>
@@ -25,6 +41,15 @@
     </div>
     <div id="app">
         <h1>RentUK</h1>
+        <!-- Plain text for search engines and link previews; the app replaces it as soon as it loads. -->
+        <p>Your rental, calmly sorted. A free, private app for UK landlords: never miss rent, a repair or a legal check.</p>
+        <ul>
+            <li>Rent tracking: see what is due, paid and overdue.</li>
+            <li>Legal checks and reminders: gas safety, electrical safety (EICR), energy certificate (EPC), smoke and CO alarms, deposit protection and Right to Rent.</li>
+            <li>Rules for England (including the Renters' Rights Act), Wales, Scotland and Northern Ireland.</li>
+            <li>Repairs, documents, costs and a simple tax estimate.</li>
+            <li>No sign-up, no adverts, no tracking. Your property data stays on your device.</li>
+        </ul>
         <noscript><p style="padding: 24px; text-align: center;">RentUK needs JavaScript turned on. Your data stays in this browser either way.</p></noscript>
     </div>
 

@@ -2056,6 +2056,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   // ---- Share card (no names, addresses or tenant details) ----
+  // The public address people can open from a shared score card.
+  const APP_LINK = 'https://drasta26.github.io/rentuk/';
   function drawShareCard(score, level, done, total) {
     const c = document.createElement('canvas');
     c.width = 1080; c.height = 1080;
@@ -2080,7 +2082,9 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     g.fillStyle = '#cbd5e1'; g.font = `400 40px ${font}`;
     g.fillText(`${done} of ${total} legal checks up to date`, 540, 905);
     g.fillStyle = '#94a3b8'; g.font = `500 34px ${font}`;
-    g.fillText('RentUK · free, private, no sign-up · What’s your score?', 540, 1010);
+    g.fillText('RentUK · free, private, no sign-up · What’s your score?', 540, 985);
+    g.fillStyle = '#a5b4fc'; g.font = `600 34px ${font}`;
+    g.fillText(APP_LINK.replace(/^https:\/\//, ''), 540, 1040);
     return c;
   }
 
@@ -2092,7 +2096,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const canvas = drawShareCard(r.score, r.level, legal.filter(i => i.status === 'ok').length, legal.length);
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
     const file = new File([blob], `rentuk-score-${r.score}.png`, { type: 'image/png' });
-    const text = `My rental compliance score is ${r.score}/100 on RentUK. What's yours?`;
+    const text = `My rental compliance score is ${r.score}/100 on RentUK. What's yours? Check yours free: ${APP_LINK}`;
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], text }); return; } catch (e) { if (e.name === 'AbortError') return; }
     }

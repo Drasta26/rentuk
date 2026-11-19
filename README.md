@@ -1,6 +1,6 @@
 # RentUK
 
-A simple, private property-management app for UK landlords. Everything stays on your device.
+A simple, private property-management app for UK landlords. Your property data stays on your device. Live at https://drasta26.github.io/rentuk/
 
 ## What it does
 - **Home:** a ranked "Needs you" list (overdue rent, urgent repairs, expired or missing checks, deposit deadlines, dates due) with rent, repairs and checks at a glance; switch between one property and the whole portfolio.
@@ -53,8 +53,8 @@ npm test
 
 ## Data and privacy
 Full notice: [PRIVACY.md](PRIVACY.md) (also in the app under More → About).
-- All data stays in your browser on your device. Nothing is sent to a server or third party. No accounts, analytics or trackers.
-- Optional Ask RentUK chat: if you use it, the questions you type (and, only if you tick the box, your property's scores and totals with no names or contact details) pass through our small chat relay to Anthropic, the maker of Claude. You need no account or key. The relay never logs or stores them, and we never see them. If you choose to use your own Anthropic key instead, questions go straight from your device to Anthropic, and the key is forgotten when you close the tab.
+- Your property data stays in your browser on your device. We never receive it. No accounts, analytics or trackers.
+- Optional Ask RentUK chat: if you use it, the questions you type (and, only if you tick the box, your property's scores and totals with no names or contact details) pass through our small chat relay to Anthropic, the maker of Claude. You need no account or key. The relay never logs or stores them, and we never see them.
 - Use **Export** to save a backup file and **Import** to restore it or move to another browser.
 - **Delete all my data** (More → Your data, type DELETE to confirm) removes everything RentUK keeps on this device. It cannot be undone.
 - This repository contains no real personal data. Use made-up details when testing.

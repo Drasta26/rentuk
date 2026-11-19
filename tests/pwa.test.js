@@ -40,6 +40,7 @@ test('manifest makes the app installable and full screen', () => {
 
 test('the app has no external scripts, styles or service-worker requests', () => {
   const html = read('index.html');
-  assert.doesNotMatch(html, /<(script|link)[^>]+(src|href)="https?:/);
+  // The canonical address is a label for search engines, not something the page loads.
+  assert.doesNotMatch(html.replace(/<link rel="canonical"[^>]*>/, ''), /<(script|link)[^>]+(src|href)="https?:/);
   assert.doesNotMatch(swSource, /https?:\/\//);
 });
