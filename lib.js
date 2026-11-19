@@ -230,6 +230,38 @@
     };
   }
 
+  // ---- Deposits: cap and protection deadline by nation (checked 18 Nov 2026; see rules.js sources) ----
+  // England: 5 weeks' rent (6 if annual rent is £50,000 or more), protect within 30 days.
+  // Wales: no security-deposit cap found, protect within 30 days. Scotland: 2 months' rent, lodge within
+  // 30 working days. Northern Ireland: 1 month's rent, protect within 28 days.
+  function addWorkingDays(iso, n) {
+    let d = iso, left = n;
+    while (left > 0) { d = addDays(d, 1); const wd = new Date(d + 'T00:00:00Z').getUTCDay(); if (wd !== 0 && wd !== 6) left--; }
+    return d;
+  }
+  function depositCheck(nation, tenant, todayIso) {
+    const t = tenant || {};
+    const amount = parseFloat(t.depositAmount) || 0;
+    const rent = parseFloat(t.rentAmount) || 0;
+    let cap = null, capText = '';
+    if (rent > 0) {
+      if (nation === 'england') { const weeks = rent * 12 >= 50000 ? 6 : 5; cap = Math.floor(rent * 12 / 52 * weeks * 100) / 100; capText = `${weeks} weeks’ rent`; }
+      else if (nation === 'scotland') { cap = rent * 2; capText = '2 months’ rent'; }
+      else if (nation === 'ni') { cap = rent; capText = '1 month’s rent'; }
+    }
+    const received = date(t.depositReceived);
+    const protectedOn = date(t.depositProtected);
+    const deadline = received ? (nation === 'scotland' ? addWorkingDays(received, 30) : addDays(received, nation === 'ni' ? 28 : 30)) : null;
+    const deadlineText = nation === 'scotland' ? '30 working days' : nation === 'ni' ? '28 days' : '30 days';
+    return {
+      amount, cap, capText, overCap: cap != null && amount > cap + 0.004,
+      deadline, deadlineText,
+      due: !!(amount > 0 && received && !protectedOn),
+      late: !!(deadline && ((protectedOn && protectedOn > deadline) || (!protectedOn && todayIso > deadline))),
+      protectedOn
+    };
+  }
+
   // ---- CSV for an accountant. Cells that start like a formula are made literal (spreadsheet formula injection). ----
   function csvCell(v) {
     let t = v === null || v === undefined ? '' : String(v);
@@ -349,7 +381,13 @@
       leaseStart: date(t.leaseStart), leaseEnd: date(t.leaseEnd),
       rentAmount: Number.isFinite(rent) && rent >= 0 ? String(rent) : '',
       ...(day >= 1 && day <= 31 ? { rentDueDay: day } : {}),
-      ...(date(t.rentFrom) ? { rentFrom: t.rentFrom } : {})
+      ...(date(t.rentFrom) ? { rentFrom: t.rentFrom } : {}),
+      ...(Number.isFinite(parseFloat(t.depositAmount)) && parseFloat(t.depositAmount) >= 0 ? { depositAmount: String(parseFloat(t.depositAmount)) } : {}),
+      ...(t.depositScheme ? { depositScheme: text(t.depositScheme) } : {}),
+      ...(t.depositRef ? { depositRef: text(t.depositRef) } : {}),
+      ...(date(t.depositReceived) ? { depositReceived: t.depositReceived } : {}),
+      ...(date(t.depositProtected) ? { depositProtected: t.depositProtected } : {}),
+      ...(date(t.endedOn) ? { endedOn: t.endedOn } : {})
     };
   }
 
@@ -370,6 +408,7 @@
     if (props) data.properties = props.map(p => ({
       id: p.id, name: text(p.name) || 'Untitled property', address: text(p.address), nation: nationOf(p),
       tenant: cleanTenant(p.tenant), createdAt: text(p.createdAt),
+      ...(Array.isArray(p.pastTenants) ? { pastTenants: p.pastTenants.slice(0, 50).map(cleanTenant).filter(Boolean) } : {}),
       ...(p.compliance ? { compliance: cleanCompliance(p.compliance) } : {})
     }));
     if (exps) data.expenses = exps
@@ -461,7 +500,7 @@
     return !lastBackup || now - lastBackup >= 30 * DAY_MS;
   }
 
-  const RentUKLib = { STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
+  const RentUKLib = { depositCheck, addWorkingDays, cleanTenant, STATUS_LABEL, EPC_BANDS, NATION_ITEMS, RULES_VERIFIED: RULES.VERIFIED, UPCOMING: n => (RULES.NATION_RULES[n] || RULES.NATION_RULES.england).upcoming, buildCsv, ledgerRows, ISSUE_STATUS, ISSUE_PRIORITY, sortIssues, issueSummary, cleanIssue, dueDates, rentLedger, received, dueDayOf, NATIONS, nationOf, datesFor, backupDue, escapeHtml, isSafeId, validateBackup, readJson, writeAll, DATA_KEYS, clearAll, erasedElsewhere, contactWays, asList,
     COMPLIANCE_ITEMS, complianceScore, cleanCompliance,
     taxYearStart, taxYear, rentalEstimate, buildIcs, demoData, MAX_BACKUP_BYTES: 5 * 1024 * 1024 };
 

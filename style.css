@@ -785,3 +785,6 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .status-line { font-size: 0.92rem; }
 .link-btn.inline { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; }
 .check-row.status-na .row-text strong { color: var(--muted); }
+.tpanel { display: flex; flex-direction: column; gap: 12px; }
+.tpanel[hidden] { display: none; }
+.dep-live:empty { display: none; }

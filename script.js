@@ -270,6 +270,9 @@ document.addEventListener('DOMContentLoaded', function() {
     r.items.filter(i => i.status === 'soon').forEach(i => add(3, 'warn', `${i.label} due`, `by ${ukDate(i.expires)}`, { tab: 'checks' }));
     allDates(p).filter(d => !d.completed && d.dueDate && d.kind !== 'auto' && daysFrom(d.dueDate) <= 14)
       .forEach(d => add(3, daysFrom(d.dueDate) < 0 ? 'bad' : 'warn', d.name, whenText(d.dueDate), { tab: 'checks' }));
+    const dep = RentUKLib.depositCheck(RentUKLib.nationOf(p), p.tenant, today);
+    if (p.tenant && dep.overCap) add(2, 'bad', 'Deposit over the legal cap', `${money2(dep.amount)} is more than ${dep.capText}`, { act: 'tenant-dep' });
+    if (p.tenant && dep.due) add(dep.late ? 1 : 3, dep.late ? 'bad' : 'warn', dep.late ? 'Deposit protection overdue' : 'Protect the deposit', `${dep.late ? 'deadline was' : 'by'} ${ukDate(dep.deadline)}`, { act: 'tenant-dep' });
     if (p.tenant && p.tenant.leaseEnd && daysFrom(p.tenant.leaseEnd) >= 0 && daysFrom(p.tenant.leaseEnd) <= 60)
       add(4, 'warn', 'Tenancy end date coming up', `${ukDate(p.tenant.leaseEnd)} · ${whenText(p.tenant.leaseEnd)}`, { act: 'tenant' });
     const missing = r.items.filter(i => i.status === 'missing' && i.legal);
@@ -669,6 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (t.dataset.prop && t.dataset.prop !== String(p.id)) { currentPropertyId = t.dataset.prop; writeAll(store, { currentPropertyId: String(currentPropertyId) }); }
         if (t.dataset.act === 'repairs') { screen = 'property'; propView = 'repairs'; render(true); }
         else if (t.dataset.act === 'tenant') { render(); tenantSheet(getCurrentProperty()); }
+        else if (t.dataset.act === 'tenant-dep') { render(); tenantSheet(getCurrentProperty(), 'dep'); }
         else go(t.dataset.go || 'home');
       },
       'add-payment': () => paymentSheet(p),
@@ -779,34 +783,111 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  function tenantSheet(p) {
+  // Tenant, rent and deposit in one sheet with three tabs, so it never needs scrolling.
+  function tenantSheet(p, startTab) {
     if (!p) return;
     const t = p.tenant || {};
-    openSheet(`Tenant · ${esc(p.name)}`, `
-      ${field('t-name', 'Name', 'text', t.name, 'autocomplete="off"')}
-      ${field('t-contact', 'Phone or email', 'text', t.contact, 'autocomplete="off"')}
-      <div class="field-row">
-        ${field('t-start', 'Lease start', 'date', t.leaseStart)}
-        ${field('t-end', 'Lease end', 'date', t.leaseEnd)}
+    const nation = RentUKLib.nationOf(p);
+    let tab = startTab || 'who';
+    const past = (p.pastTenants || []).length;
+    openSheet(`Tenancy · ${esc(p.name)}`, `
+      <div class="seg seg-3" role="tablist" aria-label="Tenancy details">
+        <button data-ttab="who" role="tab">Tenant</button><button data-ttab="rent" role="tab">Rent</button><button data-ttab="dep" role="tab">Deposit</button>
       </div>
-      <div class="field-row">
-        ${field('t-rent', 'Monthly rent (£)', 'number', t.rentAmount, 'inputmode="decimal" min="0"')}
-        ${field('t-due', 'Due on day', 'number', t.rentDueDay || (t.leaseStart ? Number(t.leaseStart.slice(8)) : ''), 'inputmode="numeric" min="1" max="31" placeholder="1"')}
+      <div class="tpanel" data-panel="who">
+        ${field('t-name', 'Name', 'text', t.name, 'autocomplete="off" maxlength="80"')}
+        ${field('t-contact', 'Phone or email', 'text', t.contact, 'autocomplete="off" maxlength="120"')}
+        <div class="field-row">
+          ${field('t-start', 'Tenancy start', 'date', t.leaseStart)}
+          ${field('t-end', nation === 'england' ? 'Fixed term end (if any)' : 'Tenancy end (if any)', 'date', t.leaseEnd)}
+        </div>
+        ${nation === 'england' ? '<p class="fine">Since 1 May 2026, private tenancies in England are periodic (rolling). Section 21 is abolished; ending one needs a legal ground.</p>' : ''}
+        ${past ? `<p class="fine">${past} past ${past === 1 ? 'tenancy' : 'tenancies'} kept in your records.</p>` : ''}
       </div>
-      ${field('t-from', 'Track rent from', 'date', t.rentFrom || t.leaseStart || todayIso())}
+      <div class="tpanel" data-panel="rent" hidden>
+        <div class="field-row">
+          ${field('t-rent', 'Monthly rent (£)', 'number', t.rentAmount, 'inputmode="decimal" min="0" step="0.01"')}
+          ${field('t-due', 'Due on day', 'number', t.rentDueDay || (t.leaseStart ? Number(t.leaseStart.slice(8)) : ''), 'inputmode="numeric" min="1" max="31" placeholder="1"')}
+        </div>
+        ${field('t-from', 'Track rent from', 'date', t.rentFrom || t.leaseStart || todayIso())}
+        <p class="fine">RentUK counts rent due from this date and compares it with the payments you record.</p>
+      </div>
+      <div class="tpanel" data-panel="dep" hidden>
+        <div class="field-row">
+          ${field('t-dep', 'Deposit (£)', 'number', t.depositAmount, 'inputmode="decimal" min="0" step="0.01" placeholder="0 if none"')}
+          ${field('t-scheme', 'Scheme', 'text', t.depositScheme, 'maxlength="60" autocomplete="off" placeholder="e.g. DPS"')}
+        </div>
+        ${field('t-ref', 'Scheme reference', 'text', t.depositRef, 'maxlength="60" autocomplete="off"')}
+        <div class="field-row">
+          ${field('t-dreceived', 'Received on', 'date', t.depositReceived, `max="${todayIso()}"`)}
+          ${field('t-dprotected', 'Protected on', 'date', t.depositProtected, `max="${todayIso()}"`)}
+        </div>
+        <p class="fine dep-live" aria-live="polite"></p>
+      </div>
       <div class="sheet-actions">
-        ${p.tenant ? '<button class="btn btn-quiet" id="t-del">Remove tenant</button>' : ''}
+        ${p.tenant ? '<button class="btn btn-quiet" id="t-end-tenancy">End tenancy</button>' : ''}
         <button class="btn" id="t-save">Save</button>
       </div>`, s => {
-      if (p.tenant) s.querySelector('#t-del').onclick = () => { p.tenant = null; saveData(); closeSheet(); render(); };
+      const show = name => {
+        tab = name;
+        s.querySelectorAll('[data-ttab]').forEach(b => { const on = b.dataset.ttab === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+        s.querySelectorAll('.tpanel').forEach(x => { x.hidden = x.dataset.panel !== name; });
+      };
+      s.querySelectorAll('[data-ttab]').forEach(b => b.onclick = () => show(b.dataset.ttab));
+      show(tab);
+      const read = () => ({
+        rentAmount: s.querySelector('#t-rent').value, depositAmount: s.querySelector('#t-dep').value,
+        depositReceived: s.querySelector('#t-dreceived').value, depositProtected: s.querySelector('#t-dprotected').value
+      });
+      const live = () => {
+        const d = RentUKLib.depositCheck(nation, read(), todayIso());
+        const bits = [];
+        if (d.cap != null) bits.push(d.overCap ? `Over the legal cap of ${money2(d.cap)} (${d.capText}).` : `Legal cap: ${money2(d.cap)} (${d.capText}).`);
+        else if (nation === 'wales') bits.push('No cap on security deposits was found for Wales (a holding deposit is capped at 1 week’s rent).');
+        if (d.deadline) bits.push(d.protectedOn ? (d.late ? `Protected after the ${d.deadlineText} deadline (${ukDate(d.deadline)}). Get advice.` : 'Protected on time.') : `Protect it by ${ukDate(d.deadline)} (${d.deadlineText}).`);
+        const el = s.querySelector('.dep-live'); el.textContent = bits.join(' '); el.classList.toggle('t-bad', d.overCap || d.late);
+      };
+      ['#t-rent', '#t-dep', '#t-dreceived', '#t-dprotected'].forEach(id => s.querySelector(id).addEventListener('input', live));
+      live();
+      const end = s.querySelector('#t-end-tenancy');
+      if (end) end.onclick = () => endTenancySheet(p);
       s.querySelector('#t-save').onclick = () => {
         const name = s.querySelector('#t-name').value.trim();
-        if (!name) return sheetError(s, 'Add the tenant’s name.');
+        if (!name) { show('who'); return sheetError(s, 'Add the tenant’s name.'); }
         const due = parseInt(s.querySelector('#t-due').value, 10);
-        if (s.querySelector('#t-due').value && !(due >= 1 && due <= 31)) return sheetError(s, 'The due day must be between 1 and 31.');
+        if (s.querySelector('#t-due').value && !(due >= 1 && due <= 31)) { show('rent'); return sheetError(s, 'The due day must be between 1 and 31.'); }
+        const r = read();
+        if (r.depositProtected && r.depositReceived && r.depositProtected < r.depositReceived) { show('dep'); return sheetError(s, 'The protected date can’t be before the date it was received.'); }
         p.tenant = { ...t, name, contact: s.querySelector('#t-contact').value.trim(), leaseStart: s.querySelector('#t-start').value,
-          leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(s.querySelector('#t-rent').value) || 0,
-          rentDueDay: due || undefined, rentFrom: s.querySelector('#t-from').value || undefined };
+          leaseEnd: s.querySelector('#t-end').value, rentAmount: parseFloat(r.rentAmount) || 0,
+          rentDueDay: due || undefined, rentFrom: s.querySelector('#t-from').value || undefined,
+          depositAmount: r.depositAmount === '' ? undefined : String(Math.max(0, parseFloat(r.depositAmount) || 0)),
+          depositScheme: s.querySelector('#t-scheme').value.trim() || undefined, depositRef: s.querySelector('#t-ref').value.trim() || undefined,
+          depositReceived: r.depositReceived || undefined, depositProtected: r.depositProtected || undefined };
+        // Fewer taps: a protected deposit ticks the deposit check; recording a deposit of £0 marks it not applicable.
+        const comp = { ...(p.compliance || {}) };
+        if (r.depositProtected) comp.deposit = true;
+        else if (r.depositAmount !== '' && parseFloat(r.depositAmount) === 0) comp.deposit = 'na';
+        p.compliance = comp;
+        saveData(); closeSheet(); render();
+      };
+    });
+  }
+
+  // Ending a tenancy keeps it in the property's history; it never deletes payments or records.
+  function endTenancySheet(p) {
+    const t = p.tenant;
+    if (!t) return;
+    openSheet('End this tenancy?', `
+      <p class="story">${esc(t.name || 'This tenant')} moves to the property’s past tenancies. Their rent payments and records stay. Use this after the tenant has left; RentUK never sends notices.</p>
+      ${field('e-date', 'Tenancy ended on', 'date', todayIso(), `max="${todayIso()}"`)}
+      ${RentUKLib.nationOf(p) === 'england' ? '<p class="fine">In England, a landlord can only end a tenancy using a legal ground and the correct notice. Get advice before serving any notice.</p>' : '<p class="fine">Ending a tenancy has legal rules on notice. Get advice before serving any notice.</p>'}
+      <div class="sheet-actions"><button class="btn btn-quiet" id="e-no">Cancel</button><button class="btn" id="e-yes">End tenancy</button></div>`, s => {
+      s.querySelector('#e-no').onclick = () => tenantSheet(p);
+      s.querySelector('#e-yes').onclick = () => {
+        const endedOn = s.querySelector('#e-date').value || todayIso();
+        p.pastTenants = [{ ...t, endedOn }, ...(p.pastTenants || [])].slice(0, 50);
+        p.tenant = null;
         saveData(); closeSheet(); render();
       };
     });
