@@ -60,7 +60,7 @@ export function checkMessages(messages) {
 
 export default {
   async fetch(request, env) {
-    const allowed = String(env.ALLOWED_ORIGINS || 'https://drasta26.github.io').split(',').map(s => s.trim()).filter(Boolean);
+    const allowed = String(env.ALLOWED_ORIGINS || 'https://rentuk.bimuti.com').split(',').map(s => s.trim()).filter(Boolean);
     const origin = request.headers.get('origin') || '';
     const ok = allowed.includes(origin);
     if (request.method === 'OPTIONS') return ok ? new Response(null, { status: 204, headers: cors(origin) }) : new Response(null, { status: 403 });

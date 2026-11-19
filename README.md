@@ -1,6 +1,6 @@
 # RentUK
 
-A simple, private property-management app for UK landlords. Your property data stays on your device. Live at https://drasta26.github.io/rentuk/
+A simple, private property-management app for UK landlords. Your property data stays on your device. Live at https://rentuk.bimuti.com/
 
 ## What it does
 - **Home:** a ranked "Needs you" list (overdue rent, urgent repairs, expired or missing checks, deposit deadlines, dates due) with rent, repairs and checks at a glance; switch between one property and the whole portfolio.

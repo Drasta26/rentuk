@@ -1,6 +1,6 @@
 # RentUK chat relay
 
-Live at https://rentuk-chat.rentuk.workers.dev/ (deployed 17 Nov 2026 through the Cloudflare dashboard, with the CEO's approval). The dashboard copy is the same code with each statement on one line; request logs are off and the rate limit is set as a dashboard binding.
+Live at https://rentuk-chat.bimuti.com/ since 19 Nov 2026 (first deployed 17 Nov 2026 at rentuk-chat.rentuk.workers.dev through the Cloudflare dashboard, with the CEO's approval). The dashboard copy is the same code with each statement on one line; request logs are off and the rate limit is set as a dashboard binding.
 
 Lets app users chat without their own Anthropic key. The owner's key is stored as a Cloudflare secret and is never in the app, this repository or the browser.
 

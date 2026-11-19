@@ -5,7 +5,7 @@ compatibility_date = "2026-11-01"
 
 [vars]
 # Only these pages may use the relay (comma-separated, no trailing slash).
-ALLOWED_ORIGINS = "https://drasta26.github.io"
+ALLOWED_ORIGINS = "https://drasta26.github.io,https://rentuk.bimuti.com"
 
 # About 10 questions a minute per visitor (approximate, per Cloudflare location).
 [[ratelimits]]

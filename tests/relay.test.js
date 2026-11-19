@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const ORIGIN = 'https://drasta26.github.io';
+const ORIGIN = 'https://rentuk.bimuti.com';
 const env = { ALLOWED_ORIGINS: ORIGIN, ANTHROPIC_API_KEY: 'test-key-not-real' };
 const load = () => import('../relay/worker.mjs');
 const post = (body, origin = ORIGIN) => new Request('https://relay.test/', {

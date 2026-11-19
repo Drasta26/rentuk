@@ -1232,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // ---- Ask RentUK: chat with Claude through the RentUK relay (relay/worker.mjs, a Cloudflare Worker) ----
   // The relay holds the owner's Anthropic key as a secret and sets the prompt, so users never need a key or any setup.
   // It never logs or stores questions.
-  const CHAT_RELAY = 'https://rentuk-chat.rentuk.workers.dev/';
+  const CHAT_RELAY = 'https://rentuk-chat.bimuti.com/';
   const chat = { turns: [], withSummary: false, busy: false };
 
   // Scores and totals only: no property names, addresses or tenant details.
@@ -2057,7 +2057,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
 
   // ---- Share card (no names, addresses or tenant details) ----
   // The public address people can open from a shared score card.
-  const APP_LINK = 'https://drasta26.github.io/rentuk/';
+  const APP_LINK = 'https://rentuk.bimuti.com/';
   function drawShareCard(score, level, done, total) {
     const c = document.createElement('canvas');
     c.width = 1080; c.height = 1080;
