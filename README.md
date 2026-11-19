@@ -1,13 +1,24 @@
 # RentUK
 
-A simple property-management web app for UK landlords. Track properties, tenants, expenses and compliance reminders (gas safety, EPC, deposit protection and similar) in one place.
+A simple, private property-management app for UK landlords. Everything stays on your device.
+
+## What it does
+- **Home:** a ranked "Needs you" list (overdue rent, urgent repairs, expired or missing checks, deposit deadlines, dates due) with rent, repairs and checks at a glance; switch between one property and the whole portfolio.
+- **Rent:** record payments as they arrive; see what was due, what was received, arrears and the oldest unpaid month. Actual figures are always kept apart from estimates.
+- **Checks:** legal duties and good practice for the property's nation (England, Wales, Scotland or Northern Ireland), from official sources, with honest statuses: up to date, expiring soon, expired, action required, not applicable, unable to verify. A guide, not legal advice.
+- **Tenancy and deposit:** tenant, rent and deposit details; the deposit cap and protection deadline for each nation; end a tenancy and keep its history.
+- **Repairs:** log issues, priority, status, contractor, quote and cost; finished repairs add their cost automatically.
+- **Documents:** certificates, agreements and receipts (PDF or photo) stored on the device.
+- **Money and tax:** costs, a tax-year estimate, and a CSV export for your accountant.
+- **Reports and reminders:** a printable property or portfolio report (tenant details left out unless chosen), a move-in pack, and calendar reminders (renewals, monthly rent due, deposit deadline).
 
 ## Who it's for
-Individual UK landlords with one or a few properties who want a free, private tool instead of a spreadsheet.
+UK landlords with one to a dozen or so properties who want a free, private tool instead of a spreadsheet or a subscription.
 
 ## Built with
 - HTML, CSS and vanilla JavaScript (no framework, no build step)
-- Browser `localStorage` for data
+- Browser `localStorage` for records and IndexedDB for document files (`files.js`)
+- `rules.js`: UK letting rules per nation, each with its official source and the date it was checked
 - A service worker (`sw.js`) that caches the app's own files for offline use; it never contacts any other server
 
 ## How to run

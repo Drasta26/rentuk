@@ -46,11 +46,20 @@ Double-click `index.html` (opens in the default browser), or run `python3 -m htt
 - Ask RentUK chat: calls the Claude Messages API from the browser with the user's own Anthropic key (model `claude-opus-5-5`, effort low, server-side refusal fallback). The key is held only in that tab's memory, never in storage. Only the typed questions go to Anthropic, plus scores and totals (no names, addresses or tenant details) if the user ticks the box. Replies are shown as plain text, never as HTML. Tested with a stubbed network only; no live call has been made.
 - Unit tests: `npm test` (Node 20+, no packages), 31 passing on 6 Nov 2026.
 
+## Product upgrade (18–19 Nov 2026, local commits, not yet pushed)
+- Tabs: Home, Checks, Ask, Money, Property. Menu (☰, top right) holds Your data, resources, feedback, about/privacy.
+- Data (localStorage keys): properties (now with `nation`, `pastTenants`, tenant deposit fields `depositAmount/Scheme/Ref/Received/Protected`, `rentDueDay`, `rentFrom`, compliance values date | true | 'na' | 'unsure' and `epcRating`), expenses (`issueId` links a repair cost), reminders, aobReminders (`propertyId`; empty = all properties), payments, issues, documents (list only). Document files live in IndexedDB `rentuk-files` (`files.js`); demo mode uses an in-memory file store. All new lists are validated in `validateBackup` and cleared by Delete all.
+- `rules.js`: compliance rules per nation (England, Wales, Scotland, NI) with legal duty vs good practice, intervals, plain-English detail and official source URL; `VERIFIED` = 18 November 2026; `upcoming` lists announced changes not in force. Re-check against official sources before every release (research notes were in the session scratchpad, not the repo).
+- Wording rule: never say a landlord is "compliant". Use "up to date (as recorded)", and keep "a guide, not legal advice". Statuses: Up to date, Expiring soon (60 days), Expired, Action required, Not applicable, Unable to verify. Only legal duties are scored; not applicable is excluded.
+- Rent: `rentLedger` counts monthly dues from `rentFrom` (or lease start) to today or tenancy end and compares with recorded payments; payments pay off the oldest month first. Only recorded payments count as received.
+- Deposits: `depositCheck` caps (England 5/6 weeks, Scotland 2 months, NI 1 month, Wales none found) and deadlines (30 days; Scotland 30 working days, bank holidays not excluded; NI 28 days).
+- Screens fit the phone: `render()` draws lists optimistically then trims rows until nothing overflows (measured with animations paused); re-fits on resize. Tested at 390x844 and 375x667 (all screens fit) and 320x568 (Home, Rent and Tax may scroll slightly).
+- Tests: `npm test`, 73 passing on 19 Nov 2026 (new files: tests/compliance, deposit, documents, csv).
+
 ## Open gaps
 - No browser (end-to-end) tests or CI yet.
 - `script.js` is one large file; splitting into modules is on the roadmap.
-- Compliance rules were checked against GOV.UK and HSE on 30 Oct 2026. How to Rent (withdrawn 1 May 2026) is replaced by the Renters' Rights Act Information Sheet / written terms. Re-check before each release; rules change. Not checked: EPC minimum rating, Wales/Scotland/NI rules.
-- The old `showAddPropertyForm` dialog is no longer used by any button.
+- Compliance rules for all four UK nations were checked against official sources on 18 Nov 2026 (see rules.js). Could not verify: formal withdrawal of How to Rent; final England written-statement content; Wales security-deposit cap; NI notice-to-quit periods and any NI legionella duty. Re-check before each release.
 - Reminder dates and compliance items are informational only; they are not legal advice on landlord obligations.
 - Hosted on GitHub Pages since 5 Nov 2026: https://drasta26.github.io/rentuk/ (serves `main`). Every push to `main` goes live.
 

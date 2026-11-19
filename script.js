@@ -1370,12 +1370,12 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   // Plain-English privacy notice (updated 17 Nov 2026). Keep in step with PRIVACY.md.
   function privacySheet() {
     openSheet('Privacy notice', `
-      <p class="story"><strong>Your property data stays on your device.</strong> Properties, tenants, checks, dates and costs are saved only in this browser. We never receive them. Backup files are saved wherever you choose. “Delete all my data” removes everything from this device.</p>
+      <p class="story"><strong>Your property data stays on your device.</strong> Properties, tenants, rent payments, deposit details, repairs, checks, dates and costs are saved only in this browser. Documents you add are stored in this browser’s file storage on the same device. We never receive any of it. Backups, reports and exports are made only when you choose; reports leave out tenant details unless you tick the box. “Delete all my data” removes everything from this device, including documents.</p>
       <p class="story"><strong>No tracking.</strong> No accounts, cookies, analytics, adverts or trackers. The browser’s own storage is used only to make the app work.</p>
       <p class="story"><strong>If you use the chat.</strong> Your question, the earlier questions and answers in that chat and, only if you tick the box, this property’s scores and totals (no names or contact details) go through our small relay on Cloudflare to Anthropic, the maker of Claude, to get an answer. The relay does not log or store them. Cloudflare handles your internet (IP) address to deliver the message and limit misuse; we do not keep it. Anthropic handles your question under its own privacy policy and may keep it for a limited time. Please don’t type names, addresses or other personal details into the chat.</p>
       <p class="story"><strong>If you email us.</strong> Your message reaches us through a forwarding service (addy.io), which hides our address. We use your email address and message only to reply, and delete them if you ask.</p>
-      <p class="story"><strong>Questions or requests.</strong> Use “Email us” under More → Feedback.</p>
-      <p class="fine">Last updated 17 November 2026.</p>`);
+      <p class="story"><strong>Questions or requests.</strong> Use “Email us” under Menu → Feedback.</p>
+      <p class="fine">Last updated 19 November 2026.</p>`);
   }
 
   function taxInfoSheet() {
@@ -2091,7 +2091,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     overlay.innerHTML = `
       <div class="wizard">
         <h3>Delete all my data?</h3>
-        <p>This removes every property, tenant, expense, reminder and compliance date from this device. It cannot be undone.</p>
+        <p>This removes every property, tenant, rent payment, repair, document, cost, date and check from this device. It cannot be undone.</p>
         <p>${isDemo ? 'You are in demo mode, so only the sample data will be cleared.' : 'Export a backup first if you might want it later.'}</p>
         <label for="delete-confirm-input">Type <strong>DELETE</strong> to confirm</label>
         <input id="delete-confirm-input" autocomplete="off" autocapitalize="characters" spellcheck="false">
