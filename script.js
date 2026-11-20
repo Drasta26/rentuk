@@ -709,6 +709,39 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // In-app document viewer: opens the saved PDF or photo on top of RentUK with a Back button (a new browser tab is blocked or lost on phones).
+  function showDocViewer(d, url) {
+    const old = document.getElementById('doc-view'); if (old) old.remove();
+    const isPdf = d.mime === 'application/pdf';
+    const v = document.createElement('div');
+    v.id = 'doc-view';
+    v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-label', d.name);
+    v.innerHTML = `<div class="pv-bar">
+        <button class="pill-btn pv-back" id="dv-back">${ICON.back}Back to RentUK</button>
+        <span class="grow"></span>
+        <button class="btn" id="dv-save">${ICON.down}Save a copy</button>
+      </div>
+      <div class="dv-body">${isPdf ? '<iframe class="dv-frame" title="Document"></iframe>' : '<img class="dv-img" alt="">'}</div>`;
+    document.body.appendChild(v);
+    const el = v.querySelector(isPdf ? '.dv-frame' : '.dv-img');
+    if (!isPdf) el.alt = d.name;
+    el.src = url;
+    const close = () => { v.remove(); URL.revokeObjectURL(url); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    v.querySelector('#dv-back').onclick = close;
+    v.querySelector('#dv-save').onclick = async () => {
+      const name = d.name.replace(/[^\w .-]+/g, '_') + (isPdf ? '.pdf' : '.' + d.mime.split('/')[1]);
+      try {
+        const blob = await (await fetch(url)).blob();
+        const file = new File([blob], name, { type: d.mime });
+        if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: d.name }); return; }
+      } catch (e) { if (e && e.name === 'AbortError') return; }
+      const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    };
+    v.querySelector('#dv-back').focus();
+  }
+
   function docOpenSheet(p, d) {
     if (!d) return;
     openSheet(esc(d.name), `
@@ -726,11 +759,7 @@ document.addEventListener('DOMContentLoaded', function() {
           fn(URL.createObjectURL(new Blob([blob], { type: RentUKLib.DOC_MIME.includes(d.mime) ? d.mime : 'application/octet-stream' })));
         } catch (e) { showCustomAlert('Couldn’t open the file storage in this browser.', 'File not available'); }
       };
-      s.querySelector('#do-open').onclick = () => withFile(url => {
-        const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10 * 60000);
-      });
+      s.querySelector('#do-open').onclick = () => withFile(url => { closeSheet(); showDocViewer(d, url); });
       s.querySelector('#do-save').onclick = () => withFile(url => {
         const a = document.createElement('a'); a.href = url; a.download = d.name.replace(/[^\w .-]+/g, '_') + (d.mime === 'application/pdf' ? '.pdf' : '.' + d.mime.split('/')[1]);
         document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);

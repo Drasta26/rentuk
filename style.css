@@ -979,3 +979,13 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
 }
 .screen-home .tagline-line svg { width: 16px; height: 16px; color: #4f46e5; }
+
+/* In-app document viewer */
+#doc-view { position: fixed; inset: 0; z-index: 30000; background: var(--bg); display: flex; flex-direction: column; }
+#doc-view .pv-bar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px; background: var(--glass-strong); border-bottom: 1px solid var(--glass-line); }
+#doc-view .pv-bar .grow { flex: 1; }
+#doc-view .pv-bar .btn, #doc-view .pv-bar .pill-btn { min-height: 44px; padding: 0 12px; font-size: 0.88rem; white-space: nowrap; }
+#doc-view .pv-back { font-weight: 800; color: var(--brand-text); }
+#doc-view .dv-body { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; background: #f1f1f4; display: flex; align-items: flex-start; justify-content: center; padding-bottom: env(safe-area-inset-bottom); }
+#doc-view .dv-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+#doc-view .dv-img { max-width: 100%; height: auto; display: block; }
