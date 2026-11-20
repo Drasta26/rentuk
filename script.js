@@ -1181,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', function() {
       <p class="sheet-lead">${ICON.lock}<span>Everything is stored only in this browser on this device. We never see it, so we can’t recover it. Deleting the app or clearing browser data deletes it too. Keep a backup somewhere safe, such as iCloud or Google Drive.</span></p>
       ${isDemo ? '' : `<p class="fine">${metaGet(BACKUP_AT) ? 'Last backup: ' + new Date(metaGet(BACKUP_AT)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No backup saved yet.'}</p>`}
       <div class="stack">
-        <button class="btn" id="g-export">${ICON.down}Save a backup file</button>
+        <button class="btn" id="g-export">${ICON.down}Backup to avoid losing your data</button>
         <label class="btn btn-ghost">${ICON.up}Restore from a backup<input type="file" id="g-import" accept="application/json,.json" hidden></label>
         <button class="btn btn-danger" id="delete-all-btn">${ICON.trash}Delete all my data</button>
       </div>`, s => {
@@ -1533,17 +1533,30 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   // Export data functionality
-  function exportData() {
+  // Save a backup file. Phones (iPhone especially) ignore download links, so they get the share sheet
+  // ("Save to Files", email, AirDrop); computers get a normal download.
+  async function exportData() {
     const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments, issues, documents }, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-
-    const exportFileDefaultName = `rentuk-backup-${new Date().toISOString().slice(0,10)}.json`;
-
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+    const name = `rentuk-backup-${todayIso()}.json`;
+    const file = new File([dataStr], name, { type: 'application/json' });
+    const phone = window.matchMedia('(pointer: coarse)').matches;
+    if (phone && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: 'RentUK backup' });
+        rememberBackup();
+        showCustomAlert('Backup saved. Keep the file somewhere safe, such as Files or iCloud Drive. Restore it any time from Your data.', 'Backup saved');
+      } catch (e) {
+        if (e && e.name !== 'AbortError') showCustomAlert('The backup could not be shared. Please try again.', 'Backup not saved');
+      }
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
     rememberBackup();
+    showCustomAlert(`Backup saved as ${name} in your Downloads. Keep it somewhere safe. Restore it any time from Your data.`, 'Backup saved');
   }
 
   // Gentle backup reminder. We never hold anyone's data, so a backup file is the only way back
