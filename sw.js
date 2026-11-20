@@ -1,7 +1,7 @@
 // RentUK service worker: keeps a copy of the app's own files so it opens offline.
 // It never sees user data (that stays in localStorage) and never contacts other servers.
 // Bump VERSION on every release so installed apps pick up the new files.
-const VERSION = '2026-11-20.8';
+const VERSION = '2026-11-20.9';
 const CACHE = 'rentuk-' + VERSION;
 const APP_FILES = [
   './',
