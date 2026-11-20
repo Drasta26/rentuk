@@ -1235,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ${SUPPORT_URL ? `<a class="btn" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>` : ''}
         <button class="btn ${SUPPORT_URL ? 'btn-ghost' : ''}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
       </div>
-      ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Ko-fi; we never see your card details.</p>' : ''}`, s => {
+      ${SUPPORT_URL ? '<p class="fine">Payments are handled securely by Ko-fi; we never see your card details. Ko-fi shares the name and email you choose with the maker, and you can pay as a guest or keep your message private.</p>' : ''}`, s => {
       const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
       btn.onclick = async () => {
         const text = 'RentUK: free for every UK landlord, private by design. Never miss rent, a repair or a legal check.';
