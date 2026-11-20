@@ -19,7 +19,7 @@ test('every file the service worker caches exists', () => {
 
 test('the service worker caches every local file index.html loads', () => {
   const html = read('index.html');
-  const refs = [...html.matchAll(/(?:src|href)="([^"#:]+)"/g)].map(m => './' + m[1]);
+  const refs = [...html.matchAll(/(?:src|href)="([^"#:]+)"/g)].map(m => './' + m[1].split('?')[0]);
   for (const r of refs) assert.ok(appFiles.includes(r), `sw.js does not cache ${r}`);
 });
 
@@ -43,4 +43,12 @@ test('the app has no external scripts, styles or service-worker requests', () =>
   // The canonical address is a label for search engines, not something the page loads.
   assert.doesNotMatch(html.replace(/<link rel="canonical"[^>]*>/, ''), /<(script|link)[^>]+(src|href)="https?:/);
   assert.doesNotMatch(swSource, /https?:\/\//);
+});
+
+test('each release gives its CSS and JS a new address, so no server can hand out an old copy', () => {
+  const html = read('index.html');
+  const version = swSource.match(/const VERSION = '([^']+)'/)[1];
+  const tagged = [...html.matchAll(/(?:src|href)="([^"#:]+\.(?:css|js))\?v=([^"]+)"/g)];
+  assert.ok(tagged.length >= 6, 'CSS and JS links need ?v=');
+  for (const m of tagged) assert.equal(m[2], version, `${m[1]} has ?v=${m[2]}, expected ${version}`);
 });
