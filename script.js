@@ -1223,9 +1223,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Public feedback address: an addy.io forwarding alias, so no personal email appears in the app or code.
   const FEEDBACK_EMAIL = 'fumr8uw9@anonaddy.me';
-  // "Support privately": the owner's personal Stripe Payment Link (customer chooses the amount).
+  // "Support privately": the owner's personal Ko-fi page (supporter chooses the amount).
   // Leave empty and the button stays hidden, so it never leads nowhere.
-  const SUPPORT_URL = '';
+  const SUPPORT_URL = 'https://ko-fi.com/drasta_uk';
 
   // Ways to support RentUK: fund it, share it, follow along. Never nagging, never guilt.
   function supportSheet() {
@@ -1235,7 +1235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ${SUPPORT_URL ? `<a class="btn" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>` : ''}
         <button class="btn ${SUPPORT_URL ? 'btn-ghost' : ''}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
       </div>
-      ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>' : ''}`, s => {
+      ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Ko-fi; we never see your card details.</p>' : ''}`, s => {
       const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
       btn.onclick = async () => {
         const text = 'RentUK: free for every UK landlord, private by design. Never miss rent, a repair or a legal check.';
