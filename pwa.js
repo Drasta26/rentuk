@@ -40,17 +40,14 @@
   }
   window.RentUKPwa = { showBar };
 
-  // Install help. Hidden once installed, or after the user dismisses it on this device.
-  const DISMISS_KEY = 'rentukInstallHintDismissed';
+  // Install help. Shown on every visit until RentUK is added to the home screen; the × only hides it for this visit.
   const isInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-  const dismissed = () => { try { return localStorage.getItem(DISMISS_KEY) === '1'; } catch (e) { return false; } };
-  const rememberDismiss = () => { try { localStorage.setItem(DISMISS_KEY, '1'); } catch (e) { /* not essential */ } };
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
   // The bar reads "[Add] RentUK to your home screen." where "Add" is the button.
   function showInstallBar(onAdd) {
-    if (isInstalled() || dismissed() || document.getElementById('pwa-update') || document.getElementById('pwa-install') || document.getElementById('backup-nudge')) return;
+    if (isInstalled() || document.getElementById('pwa-update') || document.getElementById('pwa-install') || document.getElementById('backup-nudge')) return;
     // Not on the first-look landing page: people should see the app before being asked anything.
     if (document.querySelector('.landing')) { setTimeout(() => showInstallBar(onAdd), 4000); return; }
     const bar = document.createElement('div');
@@ -77,7 +74,7 @@
     close.className = 'pwa-close';
     close.setAttribute('aria-label', 'Dismiss');
     close.textContent = '×';
-    close.addEventListener('click', () => { bar.remove(); rememberDismiss(); });
+    close.addEventListener('click', () => bar.remove());
     bar.append(icon, p, close);
     document.body.appendChild(bar);
   }
