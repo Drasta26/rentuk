@@ -948,3 +948,19 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 .menu-item .mi-feedback, .menu-item .mi-feedback svg { color: #d97706; }
 .menu-item .mi-about, .menu-item .mi-about svg { color: #0284c7; }
 .menu-item .mi-support, .menu-item .mi-support svg { color: #e11d48; }
+
+/* 20 Nov 2026 fixes: room above the menu bar on iPhone (home-bar area), menu from the top, in-app print view */
+#main.screen:not(.screen-welcome) { padding-bottom: calc(96px + max(12px, env(safe-area-inset-bottom))); }
+.screen-property .tiles { margin-bottom: 8px; }
+.sheet-overlay.sheet-from-top { align-items: flex-start; padding-top: calc(env(safe-area-inset-top) + 64px); }
+#print-view { position: fixed; inset: 0; z-index: 30000; background: var(--bg); display: flex; flex-direction: column; }
+#print-view .pv-bar { display: flex; align-items: center; gap: 8px; padding: calc(env(safe-area-inset-top) + 10px) 12px 10px; background: var(--glass-strong); border-bottom: 1px solid var(--glass-line); }
+#print-view .pv-bar .grow { flex: 1; }
+#print-view .pv-bar .btn, #print-view .pv-bar .pill-btn { min-height: 44px; padding: 0 12px; font-size: 0.88rem; white-space: nowrap; }
+#print-view .pv-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; background: #fff; }
+@media print {
+  body.printing-view > *:not(#print-view) { display: none !important; }
+  body.printing-view #print-view { position: static; display: block; background: #fff; }
+  body.printing-view #print-view .pv-bar { display: none; }
+  body.printing-view #print-view .pv-scroll { overflow: visible; }
+}

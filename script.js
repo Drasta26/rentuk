@@ -1116,10 +1116,11 @@ document.addEventListener('DOMContentLoaded', function() {
         ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
         ${item('resources', 'doc', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
         ${item('feedback', 'chat', 'Feedback', 'Tell us what to fix')}
-        ${item('about', 'info', 'About and privacy', 'Why RentUK exists')}
+        ${item('about', 'info', 'Why RentUK?', 'Private. Yours. Fair.')}
         ${item('support', 'heart', 'Support RentUK', 'Share it or chip in')}
       </div>`, s => {
       const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet, support: supportSheet };
+      s.classList.add('sheet-from-top');
       s.querySelectorAll('[data-go]').forEach(b => b.onclick = () => go[b.dataset.go]());
     });
   }
@@ -1195,7 +1196,6 @@ document.addEventListener('DOMContentLoaded', function() {
   // "Support privately": the owner's personal Stripe Payment Link (customer chooses the amount).
   // Leave empty and the button stays hidden, so it never leads nowhere.
   const SUPPORT_URL = '';
-  const CHANNELS = [{ label: 'YouTube: The Mental SPA', url: 'https://www.youtube.com/@BeWithBreath' }];
 
   // Ways to support RentUK: fund it, share it, follow along. Never nagging, never guilt.
   function supportSheet() {
@@ -1204,7 +1204,6 @@ document.addEventListener('DOMContentLoaded', function() {
       <div class="stack">
         ${SUPPORT_URL ? `<a class="btn" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>` : ''}
         <button class="btn ${SUPPORT_URL ? 'btn-ghost' : ''}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
-        ${CHANNELS.map(c => `<a class="btn btn-ghost" href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${ICON.video}${esc(c.label)}</a>`).join('')}
       </div>
       ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>' : ''}`, s => {
       const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
@@ -1391,7 +1390,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   function aboutSheet() {
-    openSheet('Why RentUK exists', `
+    openSheet('Why RentUK?', `
       <p class="story">Most landlords in the UK own one or two homes. The rules keep changing, the paperwork piles up, and the apps that help usually want your data and a monthly fee.</p>
       <p class="story">RentUK does the opposite. It keeps your checks, dates and money in one calm place, on your phone, and nowhere else.</p>
       <ul class="usp">
@@ -1800,7 +1799,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       s.querySelector('#r-open').onclick = () => {
         const list = scope === 'all' ? properties : [getCurrentProperty()];
         closeSheet();
-        openPrintWindow(`RentUK report – ${scope === 'all' ? 'all properties' : list[0].name}`, reportBody(list, s.querySelector('#r-tenant').checked));
+        closeSheet();
+        showPrintView(`RentUK report – ${scope === 'all' ? 'all properties' : list[0].name}`, reportBody(list, s.querySelector('#r-tenant').checked));
       };
     });
   }
@@ -1852,27 +1852,44 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <p class="note">Figures are the payments and costs recorded in RentUK, not audited accounts. Compliance statuses reflect what the owner recorded against official guidance checked on ${esc(RentUKLib.RULES_VERIFIED)}; they are not legal advice or a guarantee of compliance.</p>`;
   }
 
-  // Opens a print-ready page in a new tab (used by the report and the move-in pack).
-  function openPrintWindow(title, body) {
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>${esc(title)}</title>
-      <style>
-        body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; max-width: 820px; margin: 24px auto; padding: 0 16px; }
-        h1 { font-size: 24px; margin: 0; } h2 { font-size: 18px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; margin-top: 28px; }
-        h3 { font-size: 14px; margin: 16px 0 6px; } section { break-inside: avoid-page; }
-        table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #ccc; padding: 5px 7px; text-align: left; vertical-align: top; }
-        th { background: #f3f4ff; } td.n { text-align: right; white-space: nowrap; } tr.sub td { color: #555; padding-left: 20px; } tr.tot td { font-weight: 700; }
-        tr.s-expired td:nth-child(2), tr.s-action td:nth-child(2), tr.s-missing td:nth-child(2) { color: #b91c1c; font-weight: 600; }
-        tr.s-soon td:nth-child(2), tr.s-unverified td:nth-child(2) { color: #b45309; font-weight: 600; } tr.s-ok td:nth-child(2) { color: #047857; }
-        .meta { color: #555; margin-top: 2px; } .note { color: #555; font-size: 12px; margin-top: 28px; }
-        .print { background: #4f46e5; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
-        @media print { .print { display: none; } body { margin: 0; } }
-      </style></head><body><button class="print">Print or save as PDF</button>${body}</body></html>`;
-    const w = window.open('', '_blank');
-    if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
-    const printBtn = w.document.querySelector('.print');
-    if (printBtn) printBtn.addEventListener('click', () => w.print());
+  // Shows a print-ready document inside the app (report and move-in pack), with Back, Print and Share.
+  // A separate window had no way back in the home-screen app and could not print there.
+  const PRINT_CSS = `
+    .pv-doc { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; background: #fff; max-width: 820px; margin: 0 auto; padding: 16px; }
+    .pv-doc h1 { font-size: 22px; margin: 0; } .pv-doc h2 { font-size: 17px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; margin-top: 24px; }
+    .pv-doc h3 { font-size: 14px; margin: 16px 0 6px; } .pv-doc section { break-inside: avoid-page; }
+    .pv-doc ul { list-style: none; padding: 0; } .pv-doc li { padding: 3px 0; }
+    .pv-doc table { width: 100%; border-collapse: collapse; } .pv-doc td, .pv-doc th { border: 1px solid #bbb; padding: 5px 7px; text-align: left; vertical-align: top; }
+    .pv-doc th { background: #f3f4ff; } .pv-doc td.n { text-align: right; white-space: nowrap; } .pv-doc tr.sub td { color: #555; padding-left: 20px; } .pv-doc tr.tot td { font-weight: 700; }
+    .pv-doc tr.s-expired td:nth-child(2), .pv-doc tr.s-action td:nth-child(2), .pv-doc tr.s-missing td:nth-child(2) { color: #b91c1c; font-weight: 600; }
+    .pv-doc tr.s-soon td:nth-child(2), .pv-doc tr.s-unverified td:nth-child(2) { color: #b45309; font-weight: 600; } .pv-doc tr.s-ok td:nth-child(2) { color: #047857; }
+    .pv-doc .meta { color: #555; margin-top: 2px; } .pv-doc .note { color: #555; font-size: 12px; margin-top: 24px; }`;
+  function showPrintView(title, body) {
+    const old = document.getElementById('print-view'); if (old) old.remove();
+    const v = document.createElement('div');
+    v.id = 'print-view';
+    v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-label', title);
+    v.innerHTML = `<style>${PRINT_CSS}</style>
+      <div class="pv-bar">
+        <button class="pill-btn" id="pv-back">${ICON.back}Back</button>
+        <span class="grow"></span>
+        <button class="pill-btn" id="pv-share">${ICON.share}Share</button>
+        <button class="btn" id="pv-print">${ICON.down}Print or save PDF</button>
+      </div>
+      <div class="pv-scroll"><div class="pv-doc">${body}</div></div>`;
+    document.body.appendChild(v);
+    document.body.classList.add('printing-view');
+    const close = () => { v.remove(); document.body.classList.remove('printing-view'); };
+    v.querySelector('#pv-back').onclick = close;
+    v.querySelector('#pv-print').onclick = () => window.print();
+    const file = new File([`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>${PRINT_CSS}</style></head><body><div class="pv-doc">${body}</div></body></html>`],
+      title.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.html', { type: 'text/html' });
+    const shareBtn = v.querySelector('#pv-share');
+    if (!(navigator.canShare && navigator.canShare({ files: [file] }))) shareBtn.hidden = true;
+    shareBtn.onclick = async () => { try { await navigator.share({ files: [file], title }); } catch (e) { /* closed */ } };
+    const onKey = e => { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+    v.querySelector('#pv-back').focus();
   }
 
   // ---- Tenant move-in pack (printable) ----
@@ -1887,18 +1904,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     const alarms = r.items.find(i => i.key === 'alarms');
     const rooms = ['Entrance / hall', 'Living room', 'Kitchen', 'Bathroom', 'Bedroom 1', 'Bedroom 2', 'Garden / outside'];
     const t = p.tenant || {};
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-      <title>Move-in pack – ${esc(p.name)}</title>
-      <style>
-        body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; max-width: 780px; margin: 24px auto; padding: 0 16px; }
-        h1 { font-size: 22px; margin-bottom: 0; } h2 { font-size: 16px; border-bottom: 2px solid #6366f1; padding-bottom: 4px; margin-top: 24px; }
-        ul { list-style: none; padding: 0; } li { padding: 3px 0; }
-        table { width: 100%; border-collapse: collapse; } td, th { border: 1px solid #999; padding: 6px; text-align: left; vertical-align: top; }
-        td { height: 28px; } .meta { color: #555; } .note { color: #555; font-size: 12px; margin-top: 24px; }
-        .print { background: #4f46e5; color: #fff; border: 0; padding: 10px 18px; border-radius: 8px; font-size: 15px; cursor: pointer; }
-        @media print { .print { display: none; } body { margin: 0; } }
-      </style></head><body>
-      <button class="print">🖨️ Print or save as PDF</button>
+    const body = `
       <h1>Tenant move-in pack</h1>
       <p class="meta">${esc(p.name)}${p.address ? ' · ' + esc(p.address) : ''} · ${esc(nationName(p))}<br>
         Tenant: ${esc(t.name || '____________________')} · Move-in date: ${esc(t.leaseStart ? ukDate(t.leaseStart) : '____________')}</p>
@@ -1939,12 +1945,8 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <table><tr><th>Landlord</th><th>Tenant</th></tr><tr><td style="height:56px">Signed:<br>Date:</td><td>Signed:<br>Date:</td></tr></table>
 
       <p class="note">Made with RentUK. Checklist for ${esc(nationName(p))}, based on official guidance checked on ${esc(RentUKLib.RULES_VERIFIED)}. Informational only, not legal advice.</p>
-      </body></html>`;
-    const w = window.open('', '_blank');
-    if (!w) { showCustomAlert('Your browser blocked the new window. Allow pop-ups for this page and try again.', 'Pop-up blocked'); return; }
-    w.document.open(); w.document.write(html); w.document.close();
-    const printBtn = w.document.querySelector('.print');
-    if (printBtn) printBtn.addEventListener('click', () => w.print());
+      `;
+    showPrintView(`Move-in pack – ${p.name}`, body);
   }
 
   // ---- Demo mode ----
