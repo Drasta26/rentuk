@@ -993,3 +993,9 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 /* Premium labels */
 .prem-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.02em; vertical-align: middle; }
 .prem-note { margin: 6px 0 0; font-size: 0.82rem; color: var(--muted); }
+
+/* Android installed app only (home-screen icon): keep the bottom menu clear of the system navigation bar. The browser and iPhone are unchanged. */
+@media (display-mode: standalone) {
+  html.android .tabbar { bottom: max(40px, calc(env(safe-area-inset-bottom) + 12px)); }
+  html.android #main.screen:not(.screen-welcome) { padding-bottom: calc(96px + max(40px, calc(env(safe-area-inset-bottom) + 12px))); }
+}

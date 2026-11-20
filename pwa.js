@@ -3,6 +3,9 @@
 (function () {
   'use strict';
 
+  // Android only: lets the CSS lift the bottom menu clear of Android's own navigation bar.
+  if (/Android/i.test(navigator.userAgent)) document.documentElement.classList.add('android');
+
   // Splash: shown by index.html until the app has drawn its first screen.
   function hideSplash() {
     const splash = document.getElementById('splash');
