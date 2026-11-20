@@ -1874,7 +1874,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
         <button class="pill-btn pv-back" id="pv-back">${ICON.back}Back to RentUK</button>
         <span class="grow"></span>
         <button class="pill-btn pv-icon" id="pv-share" aria-label="Share">${ICON.share}</button>
-        <button class="btn" id="pv-print">${ICON.down}Print / PDF</button>
+        <button class="btn" id="pv-print">${ICON.down}Print</button>
       </div>
       <div class="pv-scroll"><div class="pv-doc">${body}</div>
         <div class="pv-end"><button class="btn btn-big" id="pv-back2">${ICON.back}Back to RentUK</button></div></div>`;

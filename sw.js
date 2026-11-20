@@ -1,7 +1,7 @@
 // RentUK service worker: keeps a copy of the app's own files so it opens offline.
 // It never sees user data (that stays in localStorage) and never contacts other servers.
 // Bump VERSION on every release so installed apps pick up the new files.
-const VERSION = '2026-11-20.2';
+const VERSION = '2026-11-20.3';
 const CACHE = 'rentuk-' + VERSION;
 const APP_FILES = [
   './',
@@ -24,7 +24,8 @@ const APP_FILES = [
 
 self.addEventListener('install', event => {
   // New versions take over straight away, so nobody is left on an old copy.
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES)).then(() => self.skipWaiting()));
+  // Fetch every file fresh from the server (never from the browser's own cache), so a new version can't save old files.
+  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(APP_FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
