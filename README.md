@@ -13,7 +13,7 @@ A simple, private property-management app for UK landlords. Your property data s
 - **Reports and reminders:** a printable property or portfolio report (tenant details left out unless chosen), a move-in pack, and calendar reminders (renewals, monthly rent due, deposit deadline).
 
 ## Who it's for
-UK landlords with one to a dozen or so properties who want a free, private tool instead of a spreadsheet or a subscription.
+UK landlords with one to a dozen or so properties who want a private tool instead of a spreadsheet or a subscription. The essentials are free for everyone, always; premium extras are optional, pay once, never a subscription.
 
 ## Built with
 - HTML, CSS and vanilla JavaScript (no framework, no build step)

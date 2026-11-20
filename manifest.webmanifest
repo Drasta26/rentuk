@@ -1,7 +1,7 @@
 {
   "name": "RentUK – landlord compliance and rent tracker",
   "short_name": "RentUK",
-  "description": "Free, private property management for UK landlords. Your data stays on your device.",
+  "description": "Free for every UK landlord, private by design; premium is your choice. Your data stays on your device.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

@@ -336,7 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <button class="link-btn land-setup" data-action="setup">or set up my property</button>
         </div>
         <div class="land-group">
-        <p class="privacy-line">Free · No sign-up</p>
+        <p class="privacy-line">Free for everyone · Premium is your choice</p>
         <p class="privacy-line tagline-line land-sign">${ICON.lock}<span>Your App. Your Data. Your Choice.</span></p>
         </div>
       </div>`;
@@ -1116,7 +1116,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ${item('data', 'lock', 'Your data', 'Backup, restore, delete')}
         ${item('resources', 'doc', 'Helpful resources', 'Official GOV.UK and HMRC pages')}
         ${item('feedback', 'chat', 'Feedback', 'Tell us what to fix')}
-        ${item('about', 'info', 'Why RentUK?', 'Private. Yours. Fair.')}
+        ${item('about', 'info', 'Why RentUK?', 'Your App. Your Data. Your Choice.')}
         ${item('support', 'heart', 'Support RentUK', 'Share it or chip in')}
       </div>`, s => {
       const go = { data: dataSheet, resources: resourcesSheet, feedback: feedbackSheet, about: aboutSheet, support: supportSheet };
@@ -1200,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Ways to support RentUK: fund it, share it, follow along. Never nagging, never guilt.
   function supportSheet() {
     openSheet('Support RentUK', `
-      <p class="sheet-lead">${ICON.heart}<span>Built by one. Funded by many. RentUK has no adverts and never sells your data. If it helps you, here’s how you can help it.</span></p>
+      <p class="sheet-lead">${ICON.heart}<span>Built by one. Funded by many. The essentials are free for everyone, always; premium is your choice. RentUK has no adverts and never sells your data. If it helps you, here’s how you can help it.</span></p>
       <div class="stack">
         ${SUPPORT_URL ? `<a class="btn" href="${esc(SUPPORT_URL)}" target="_blank" rel="noopener noreferrer">${ICON.heart}Support privately</a>` : ''}
         <button class="btn ${SUPPORT_URL ? 'btn-ghost' : ''}" id="sup-share">${ICON.share}<span>Share RentUK with a landlord</span></button>
@@ -1208,7 +1208,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ${SUPPORT_URL ? '<p class="fine">Your name is never shown publicly. Payments are handled securely by Stripe; we never see your card details.</p>' : ''}`, s => {
       const btn = s.querySelector('#sup-share'), label = btn.querySelector('span');
       btn.onclick = async () => {
-        const text = 'RentUK: a free, private app for UK landlords. Never miss rent, a repair or a legal check.';
+        const text = 'RentUK: free for every UK landlord, private by design. Never miss rent, a repair or a legal check.';
         try {
           if (navigator.share) { await navigator.share({ title: 'RentUK', text, url: APP_LINK }); label.textContent = 'Thank you for sharing'; return; }
           await navigator.clipboard.writeText(`${text} ${APP_LINK}`); label.textContent = 'Copied, ready to paste';
@@ -1396,7 +1396,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <ul class="usp">
         <li><strong>We never see your data.</strong> No accounts, no tracking, nothing to breach.</li>
         <li><strong>You own everything.</strong> Back up, restore or delete it any time. Open-source code.</li>
-        <li><strong>Fair by design.</strong> Free core. No subscription traps.</li>
+        <li><strong>Fair by design.</strong> The essentials are free for everyone, always. Premium extras, as they arrive, are your choice: pay once, never a subscription.</li>
       </ul>
       <p class="tagline">Your app. Your data. Your choice.</p>
       <button class="link-btn" id="a-priv">Read our privacy notice</button>`, s => {
@@ -1871,16 +1871,18 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     v.setAttribute('role', 'dialog'); v.setAttribute('aria-modal', 'true'); v.setAttribute('aria-label', title);
     v.innerHTML = `<style>${PRINT_CSS}</style>
       <div class="pv-bar">
-        <button class="pill-btn" id="pv-back">${ICON.back}Back</button>
+        <button class="pill-btn pv-back" id="pv-back">${ICON.back}Back to RentUK</button>
         <span class="grow"></span>
-        <button class="pill-btn" id="pv-share">${ICON.share}Share</button>
-        <button class="btn" id="pv-print">${ICON.down}Print or save PDF</button>
+        <button class="pill-btn pv-icon" id="pv-share" aria-label="Share">${ICON.share}</button>
+        <button class="btn" id="pv-print">${ICON.down}Print / PDF</button>
       </div>
-      <div class="pv-scroll"><div class="pv-doc">${body}</div></div>`;
+      <div class="pv-scroll"><div class="pv-doc">${body}</div>
+        <div class="pv-end"><button class="btn btn-big" id="pv-back2">${ICON.back}Back to RentUK</button></div></div>`;
     document.body.appendChild(v);
     document.body.classList.add('printing-view');
     const close = () => { v.remove(); document.body.classList.remove('printing-view'); };
     v.querySelector('#pv-back').onclick = close;
+    v.querySelector('#pv-back2').onclick = close;
     v.querySelector('#pv-print').onclick = () => window.print();
     const file = new File([`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><style>${PRINT_CSS}</style></head><body><div class="pv-doc">${body}</div></body></html>`],
       title.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.html', { type: 'text/html' });
@@ -2113,7 +2115,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     g.fillStyle = '#cbd5e1'; g.font = `400 40px ${font}`;
     g.fillText(`${done} of ${total} legal checks up to date`, 540, 905);
     g.fillStyle = '#94a3b8'; g.font = `500 34px ${font}`;
-    g.fillText('RentUK · free, private, no sign-up · What’s your score?', 540, 985);
+    g.fillText('RentUK · free for everyone · private · What’s your score?', 540, 985);
     g.fillStyle = '#a5b4fc'; g.font = `600 34px ${font}`;
     g.fillText(APP_LINK.replace(/^https:\/\//, ''), 540, 1040);
     return c;

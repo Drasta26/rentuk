@@ -864,7 +864,6 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   .hero-task { padding: 16px 18px 14px; }
   .hero-task strong { font-size: 1.2rem; }
   .hero-go { margin-top: 6px; padding: 8px 16px; }
-  .screen-home .tagline-line { display: none; }
 }
 @media (max-height: 620px) {
   .welcome { gap: 10px; padding: 16px 16px; }
@@ -964,3 +963,7 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
   body.printing-view #print-view .pv-bar { display: none; }
   body.printing-view #print-view .pv-scroll { overflow: visible; }
 }
+#print-view .pv-back { font-weight: 800; color: var(--brand-text); }
+#print-view .pv-icon { width: 44px; padding: 0; justify-content: center; }
+#print-view .pv-end { padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); display: flex; justify-content: center; }
+@media print { body.printing-view #print-view .pv-end { display: none; } }
