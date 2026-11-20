@@ -442,12 +442,13 @@ document.addEventListener('DOMContentLoaded', function() {
       const seg = `
         <div class="seg" role="group" aria-label="Money view">
           ${[['rent', 'Rent'], ['expenses', 'Costs'], ['tax', 'Tax']].map(([id, label]) =>
-            `<button data-money="${id}" aria-pressed="${moneyView === id}" class="${moneyView === id ? 'on' : ''}">${label}</button>`).join('')}
+            `<button data-money="${id}" aria-pressed="${moneyView === id}" class="${moneyView === id ? 'on' : ''}">${label}${id === 'tax' ? ' <span class="prem-pill">Premium</span>' : ''}</button>`).join('')}
         </div>`;
       const start = RentUKLib.taxYearStart(todayIso());
       if (moneyView === 'tax') {
         const est = RentUKLib.rentalEstimate(properties, expenses, start);
         return `${seg}
+          <p class="prem-note"><span class="prem-pill">Premium</span> Tax and Export for accountant are premium features, shown in full for now.</p>
           <h2 class="sub-h">Tax year ${esc(est.taxYear.label)} · all properties</h2>
           <p class="fine">Received so far: <strong>${money2(RentUKLib.received(payments, est.taxYear.start, todayIso()))}</strong>. Below: full-year estimate.</p>
           <div class="stats">
@@ -464,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
             : 'Making Tax Digital is not triggered by your rent alone.'}</div>
           <div class="btn-row">
             <button class="link-btn" data-action="tax-info">${ICON.info}How this is worked out</button>
-            <button class="link-btn" data-action="export-csv">${ICON.down}Export for accountant</button>
+            <button class="link-btn" data-action="export-csv">${ICON.down}Export for accountant <span class="prem-pill">Premium</span></button>
           </div>`;
       }
       if (moneyView === 'expenses') {
