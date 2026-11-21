@@ -70,7 +70,7 @@ Tagline: "Your app. Your data. Your choice."
 The 3 USPs, which are non-negotiable:
 1. **We never see your data.** Everything stays on the user's device. Users bring their own AI key. No accounts, no tracking, no tracking ads, nothing to breach.
 2. **You own everything.** Your app, your data, your key. Export, delete or take it anywhere. Open-source code anyone can check.
-3. **Fair by design.** Free core. Pay what you want or one-off upgrades. No subscription traps. Open costs page.
+3. **Fair by design.** Free core. Premium features at a fair price, always your choice. Optional pay-what-you-want support. No hidden charges or traps. Open costs page.
 
 Build rules: local-first storage; no analytics, trackers, ad networks or data-leaking third-party scripts; never log prompts or user content; always offer export and delete-all; never commit secrets (scan history before any push); made-up sample data only; MIT licence unless Asta says otherwise; truthful privacy claims ("we never see or store your data" if text goes to an AI provider). No adverts. A later support button uses "Support", not "Donate", with the copy "Built by one. Funded by many." UK English. If a request conflicts with this foundation, say so and suggest a compliant alternative.
 - Security and privacy (17 Nov 2026): Content Security Policy in `index.html` (scripts only from this site; network only to the relay and Anthropic), so never add inline `onclick` handlers or outside scripts. Privacy notice in the app (About → Read our privacy notice, and the chat footer) and in `PRIVACY.md`; keep both in step.

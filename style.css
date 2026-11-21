@@ -1003,15 +1003,13 @@ body:has(.wizard-overlay, .sheet-overlay, #chat-screen, #custom-alert) :is(#pwa-
 /* ---- Home: always-visible "Add to home screen" message ---- */
 .home-add {
   display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 14px; border-radius: 20px;
-  background: var(--glass); border: 1px solid var(--glass-line); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-  box-shadow: var(--glass-hi), var(--float); color: var(--text); margin-top: 6px;
+  background: rgba(251, 191, 36, 0.26); border: 1px solid rgba(217, 119, 6, 0.4); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: var(--glass-hi), var(--float); color: #7c2d12; margin-top: 6px;
 }
 .home-add .pwa-add { flex: none; margin: 0; }
 .home-add-text { display: flex; flex-direction: column; gap: 2px; line-height: 1.25; min-width: 0; }
 .home-add-text strong { font-size: 0.95rem; font-weight: 700; }
-.home-add-text small { font-size: 0.8rem; color: var(--muted); }
-/* The bottom bar would repeat the same message while Home shows it */
-body:has(.home-add) #pwa-install { display: none; }
+.home-add-text small { font-size: 0.8rem; color: #7c2d12; }
 
 /* ---- Calm parallax background: three depth layers drifting at different, slow speeds (colours unchanged) ---- */
 body::before {

@@ -87,10 +87,6 @@
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     installEvent = e;
-    showInstallBar(() => {
-      installEvent.prompt();
-      installEvent.userChoice.finally(() => { installEvent = null; });
-    });
   });
   window.addEventListener('appinstalled', () => {
     const bar = document.getElementById('pwa-install');
@@ -140,9 +136,6 @@
     else showIosGuide();
   };
 
-  if (isIos && !isInstalled()) {
-    setTimeout(() => showInstallBar(showIosGuide), 3000);
-  }
 
   // Offline cache and "new version" message. Service workers need https or localhost,
   // so this is skipped when index.html is opened straight from a folder.

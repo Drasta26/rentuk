@@ -1428,7 +1428,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <ul class="usp">
         <li><strong>We never see your data.</strong> No accounts, no tracking, nothing to breach.</li>
         <li><strong>You own everything.</strong> Back up, restore or delete it any time. Open-source code.</li>
-        <li><strong>Fair by design.</strong> The essentials are free for everyone, always. Premium extras, as they arrive, are your choice: pay once, never a subscription.</li>
+        <li><strong>Fair by design.</strong> The essentials are free for everyone, always, with paid premium extras.</li>
       </ul>
       <p class="tagline">Your app. Your data. Your choice.</p>
       <button class="link-btn" id="a-priv">Read our privacy notice</button>`, s => {
