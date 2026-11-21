@@ -54,7 +54,7 @@ npm test
 ## Data and privacy
 Full notice: [PRIVACY.md](PRIVACY.md) (also in the app under More → About).
 - Your property data stays in your browser on your device. We never receive it. No accounts, analytics or trackers.
-- Optional Ask RentUK chat: if you use it, the questions you type (and, only if you tick the box, your property's scores and totals with no names or contact details) pass through our small chat relay to Anthropic, the maker of Claude. You need no account or key. The relay never logs or stores them, and we never see them.
+- Optional Ask RentUK chat: if you use it, the questions you type pass through our small chat relay to Anthropic, the maker of Claude. You need no account or key. The relay never logs or stores them, and we never see them.
 - Use **Export** to save a backup file and **Import** to restore it or move to another browser.
 - **Delete all my data** (More → Your data, type DELETE to confirm) removes everything RentUK keeps on this device. It cannot be undone.
 - This repository contains no real personal data. Use made-up details when testing.

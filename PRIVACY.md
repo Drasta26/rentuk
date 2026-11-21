@@ -9,7 +9,7 @@ Properties, tenants, rent payments, deposit details, repairs, checks, dates and 
 No accounts, cookies, analytics, adverts or trackers. The browser's own storage is used only to make the app work.
 
 ## If you use the chat
-Your question, the earlier questions and answers in that chat and, only if you tick the box, the property's scores and totals (no names or contact details) go through our small relay on Cloudflare to Anthropic, the maker of Claude, to get an answer.
+Your question and the earlier questions and answers in that chat go through our small relay on Cloudflare to Anthropic, the maker of Claude, to get an answer.
 
 - The relay does not log or store them.
 - Cloudflare handles your internet (IP) address to deliver the message and limit misuse; we do not keep it.
