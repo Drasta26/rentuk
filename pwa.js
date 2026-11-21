@@ -133,6 +133,13 @@
     g.querySelector('.btn').focus();
   }
 
+  // Used by the Home screen's always-visible "Add" message.
+  window.RentUKPwa.canAdd = () => !isInstalled();
+  window.RentUKPwa.add = () => {
+    if (installEvent) { installEvent.prompt(); installEvent.userChoice.finally(() => { installEvent = null; }); }
+    else showIosGuide();
+  };
+
   if (isIos && !isInstalled()) {
     setTimeout(() => showInstallBar(showIosGuide), 3000);
   }

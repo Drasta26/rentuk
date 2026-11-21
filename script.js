@@ -403,6 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </button>
         ${n > 1 ? `<button class="more-btn" data-action="home-list">${n - 1} more ${n - 1 === 1 ? 'thing' : 'things'} to do${ICON.chevron}</button>` : ''}` : `
         <div class="all-clear glass">${chip('tick', 'indigo')}<div><strong>All clear</strong><p>No overdue rent, no urgent repairs and every check you’ve recorded is up to date.</p></div></div>`}
+        ${window.RentUKPwa && window.RentUKPwa.canAdd() ? `<button class="home-add" data-action="add-home" aria-label="Add RentUK to your home screen"><span class="pwa-add" aria-hidden="true">Add</span><span class="home-add-text"><strong>RentUK to your home screen</strong><small>To avoid losing your data</small></span></button>` : ''}
         <div class="quiet-sum" aria-label="Summary">
           <button data-tab="money"><small>Rent this month</small><strong>${money(got)}</strong><span>of ${money(due)}</span></button>
           <button ${many ? 'data-tab="property"' : 'data-action="repairs"'}><small>Repairs</small><strong>${open}</strong><span>open</span></button>
@@ -866,6 +867,7 @@ document.addEventListener('DOMContentLoaded', function() {
       'add-expense': () => expenseSheet(p),
       'home-list': () => { homeList = true; delete pageAt.attn; render(true); },
       'home-back': () => { homeList = false; render(true); },
+      'add-home': () => window.RentUKPwa && window.RentUKPwa.add(),
       attn: () => {
         homeList = false;
         if (t.dataset.prop && t.dataset.prop !== String(p.id)) { currentPropertyId = t.dataset.prop; writeAll(store, { currentPropertyId: String(currentPropertyId) }); }
