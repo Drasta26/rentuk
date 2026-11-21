@@ -1377,7 +1377,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
       <div class="chat-log" id="c-log" aria-live="polite"></div>
       <div class="chat-dock">
         ${COMING_SOON}
-        <label class="chat-opt"><input type="checkbox" id="c-sum" ${chat.withSummary ? 'checked' : ''}> Share this property’s scores and totals (no names or contact details)</label>
         <div class="chat-input">
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
@@ -1395,7 +1394,6 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
     };
     if (!chat.turns.length) bubble('assistant', 'Hello. I’m an AI assistant for landlords in England. What would you like to know?');
     chat.turns.forEach(t => bubble(t.role, t.text));
-    body.querySelector('#c-sum').onchange = e => { chat.withSummary = e.target.checked; };
     const ask = async () => {
       const text = q.value.trim();
       if (!text || chat.busy) return;
