@@ -1029,3 +1029,5 @@ html::before {
 @keyframes par-far  { to { transform: translate3d(-2%, 1.5%, 0) scale(1.03); } }
 @keyframes par-mid  { to { transform: translate3d(-4%, 3%, 0) scale(1.05); } }
 @keyframes par-near { to { transform: translate3d(-7%, 5%, 0) scale(1.08); } }
+.chat-dock .soon-pill { white-space: nowrap; gap: 5px; padding: 6px 10px; }
+@media (max-width: 380px) { .chat-dock .soon-pill { font-size: 0.72rem; } }

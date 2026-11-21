@@ -1342,8 +1342,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   }
 
   const COMING_SOON = `<div class="soon-row" aria-label="Coming soon">
-      <span class="soon-pill">${ICON.mic}Voice chat <em>Premium · coming soon</em></span>
-      <span class="soon-pill">${ICON.video}Video chat <em>Premium · coming soon</em></span>
+      <span class="soon-pill">${ICON.mic}${ICON.video}Voice and video chat <em>Premium · coming soon</em></span>
     </div>`;
 
   function openChat(p) {
@@ -1383,7 +1382,7 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
           <textarea id="c-q" rows="1" maxlength="2000" placeholder="Ask a landlord question" aria-label="Your question"></textarea>
           <button class="btn chat-send" id="c-send" aria-label="Send">${ICON.send}</button>
         </div>
-        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span><span class="fine">${ICON.lock} We never see or store your questions.</span></div>
+        <div class="chat-foot"><span class="fine">AI can make mistakes. Not legal or tax advice.</span></div>
       </div>`;
     const log = body.querySelector('#c-log'), q = body.querySelector('#c-q'), send = body.querySelector('#c-send');
     const bubble = (role, text) => {
