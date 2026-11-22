@@ -1208,17 +1208,30 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // Picture guide: how to get a saved backup back into RentUK.
+  function restoreGuide() {
+    openSheet('How to restore', `
+      <ol class="restore-guide">
+        <li><span class="pwa-step-icon">${ICON.menu}</span><span>Open <b>Menu</b>, then <b>Your data</b>.</span></li>
+        <li><span class="pwa-step-icon">${ICON.up}</span><span>Tap <b>Restore from a backup</b> and pick your file.<small>Look in Files, iCloud Drive or Google Drive for “RentUK backup”.</small></span></li>
+        <li><span class="pwa-step-icon">${ICON.tick}</span><span>Check the numbers, then tap <b>Replace my data</b>.</span></li>
+      </ol>
+      <button class="btn" id="rg-ok">Got it</button>`, s => { s.querySelector('#rg-ok').onclick = closeSheet; });
+  }
+
   function dataSheet() {
     openSheet('Your data', `
       <p class="sheet-lead">${ICON.lock}<span>Everything is stored only in this browser on this device. We never see it, so we can’t recover it. Deleting the app or clearing browser data deletes it too. Keep a backup somewhere safe, such as iCloud or Google Drive.</span></p>
       ${isDemo ? '' : `<p class="fine">${metaGet(BACKUP_AT) ? 'Last backup: ' + new Date(metaGet(BACKUP_AT)).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'No backup saved yet.'}</p>`}
       <div class="stack">
-        <button class="btn" id="g-export">${ICON.down}Backup to avoid losing your data</button>
+        <button class="btn" id="g-export">${ICON.down}Save backup to phone or cloud</button>
         <label class="btn btn-ghost">${ICON.up}Restore from a backup<input type="file" id="g-import" accept="application/json,.json" hidden></label>
+        <button class="link-btn" id="g-how">How do I restore?</button>
         <button class="btn btn-danger" id="delete-all-btn">${ICON.trash}Delete all my data</button>
       </div>`, s => {
       s.querySelector('#g-export').onclick = exportData;
       s.querySelector('#g-import').onchange = ev => { closeSheet(); importData(ev); };
+      s.querySelector('#g-how').onclick = restoreGuide;
       s.querySelector('#delete-all-btn').onclick = () => { closeSheet(); confirmDeleteAll(); };
     });
   }
@@ -1566,14 +1579,14 @@ Tax year ${est.taxYear.label} estimate: rent £${est.income}, costs £${est.cost
   // ("Save to Files", email, AirDrop); computers get a normal download.
   async function exportData() {
     const dataStr = JSON.stringify({ expenses, properties, currentPropertyId, reminders, aobReminders, payments, issues, documents }, null, 2);
-    const name = `rentuk-backup-${todayIso()}.json`;
+    const name = `RentUK backup ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}.json`;
     const file = new File([dataStr], name, { type: 'application/json' });
     const phone = window.matchMedia('(pointer: coarse)').matches;
     if (phone && navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({ files: [file], title: 'RentUK backup' });
         rememberBackup();
-        showCustomAlert('Backup saved. Keep the file somewhere safe, such as Files or iCloud Drive. Restore it any time from Your data.', 'Backup saved');
+        showCustomAlert('Backup saved. Keep the file somewhere safe, such as Files, iCloud Drive or Google Drive. Restore it any time from Your data.', 'Backup saved');
       } catch (e) {
         if (e && e.name !== 'AbortError') showCustomAlert('The backup could not be shared. Please try again.', 'Backup not saved');
       }

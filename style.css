@@ -1031,3 +1031,8 @@ html::before {
 @keyframes par-near { to { transform: translate3d(-7%, 5%, 0) scale(1.08); } }
 .chat-dock .soon-pill { white-space: nowrap; gap: 5px; padding: 6px 10px; }
 @media (max-width: 380px) { .chat-dock .soon-pill { font-size: 0.72rem; } }
+
+/* ---- Restore guide ---- */
+.restore-guide { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 12px; }
+.restore-guide li { display: flex; align-items: center; gap: 12px; font-size: 0.95rem; line-height: 1.35; }
+.restore-guide small { display: block; color: var(--muted); font-size: 0.8rem; }
